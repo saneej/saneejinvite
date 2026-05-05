@@ -11,6 +11,7 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showBulkMenu, setShowBulkMenu] = useState(false);
 
@@ -45,10 +46,8 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
   };
 
   const handleBulkDelete = () => {
-    if (confirm(`Remove ${selectedIds.length} selected guests?`)) {
-      selectedIds.forEach(id => deleteGuest(id));
-      setSelectedIds([]);
-    }
+    selectedIds.forEach(id => deleteGuest(id));
+    setSelectedIds([]);
   };
 
   const getWhatsAppLink = (guest: Guest) => {
@@ -197,47 +196,70 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
                     {guest.phone || (guest.notes && `"${guest.notes.substring(0, 20)}..."`)}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {guest.phone && (
-                      <a
-                        href={getWhatsAppLink(guest) || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => {
-                          if (guest.status === InvitationStatus.NOT_INVITED) {
-                            updateGuest(guest.id, { status: InvitationStatus.INVITED });
-                          }
-                        }}
-                        className="bg-natural-sidebar text-natural-olive px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-natural-olive hover:text-white transition-all flex items-center gap-1.5"
-                      >
-                        Invite
-                      </a>
-                    )}
-                    
-                    <button
-                      onClick={() => setEditingGuest(guest)}
-                      className="p-1.5 text-natural-muted hover:text-natural-olive transition-colors sm:block hidden"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    
-                    <div className="relative group/more sm:hidden">
-                       <button className="p-1.5 text-natural-muted uppercase text-[9px] font-bold tracking-widest">More</button>
-                       <div className="absolute right-0 bottom-full mb-2 bg-white border border-natural-border rounded-lg shadow-xl hidden group-hover/more:block p-1 min-w-[100px] z-10">
-                          <button onClick={() => setEditingGuest(guest)} className="w-full text-left p-2 text-natural-muted hover:text-natural-olive flex items-center gap-2 text-[10px] uppercase font-bold"><Edit2 className="w-3 h-3" /> Edit</button>
-                          <button onClick={() => { if (confirm(`Remove ${guest.name}?`)) deleteGuest(guest.id); }} className="w-full text-left p-2 text-rose-500 hover:bg-rose-50 flex items-center gap-2 text-[10px] uppercase font-bold"><Trash2 className="w-3 h-3" /> Delete</button>
-                       </div>
-                    </div>
+                    <div className="flex items-center gap-2">
+                      {guest.phone && !deleteId && (
+                        <a
+                          href={getWhatsAppLink(guest) || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            if (guest.status === InvitationStatus.NOT_INVITED) {
+                              updateGuest(guest.id, { status: InvitationStatus.INVITED });
+                            }
+                          }}
+                          className="bg-natural-sidebar text-natural-olive px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-natural-olive hover:text-white transition-all flex items-center gap-1.5"
+                        >
+                          Invite
+                        </a>
+                      )}
 
-                    <button
-                      onClick={() => {
-                        if (confirm(`Remove ${guest.name}?`)) deleteGuest(guest.id);
-                      }}
-                      className="p-1.5 text-natural-muted hover:text-rose-500 transition-colors hidden sm:block"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                      {deleteId === guest.id ? (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-1">
+                          <button 
+                            onClick={() => {
+                              deleteGuest(guest.id);
+                              setDeleteId(null);
+                            }}
+                            className="bg-rose-500 text-white px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-widest"
+                          >
+                            Confirm
+                          </button>
+                          <button 
+                            onClick={() => setDeleteId(null)}
+                            className="p-1.5 text-natural-muted hover:bg-natural-sidebar rounded-lg"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setDeleteId(null);
+                              setEditingGuest(guest);
+                            }}
+                            className="p-1.5 text-natural-muted hover:text-natural-olive transition-colors sm:block hidden"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          <div className="relative group/more sm:hidden">
+                             <button className="p-1.5 text-natural-muted uppercase text-[9px] font-bold tracking-widest">More</button>
+                             <div className="absolute right-0 bottom-full mb-2 bg-white border border-natural-border rounded-lg shadow-xl hidden group-hover/more:block p-1 min-w-[100px] z-10">
+                                <button onClick={() => setEditingGuest(guest)} className="w-full text-left p-2 text-natural-muted hover:text-natural-olive flex items-center gap-2 text-[10px] uppercase font-bold"><Edit2 className="w-3 h-3" /> Edit</button>
+                                <button onClick={() => setDeleteId(guest.id)} className="w-full text-left p-2 text-rose-500 hover:bg-rose-50 flex items-center gap-2 text-[10px] uppercase font-bold"><Trash2 className="w-3 h-3" /> Delete</button>
+                             </div>
+                          </div>
+      
+                          <button
+                            onClick={() => setDeleteId(guest.id)}
+                            className="p-1.5 text-natural-muted hover:text-rose-500 transition-colors hidden sm:block"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                 </div>
               </motion.div>
             ))}

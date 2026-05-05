@@ -7,6 +7,7 @@ export function Categories() {
   const { categories, addCategory, updateCategory, deleteCategory, guests } = useGuests();
   const [newCatName, setNewCatName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
 
   const handleAdd = (e: React.FormEvent) => {
@@ -106,19 +107,39 @@ export function Categories() {
                           <X className="w-4 h-4" />
                         </button>
                       </>
+                    ) : deleteId === cat.id ? (
+                      <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-200">
+                        <span className="text-[8px] uppercase font-bold text-rose-500 mr-2">Confirm Delete?</span>
+                        <button 
+                          onClick={() => {
+                            deleteCategory(cat.id);
+                            setDeleteId(null);
+                          }} 
+                          className="bg-rose-500 text-white px-3 py-1 rounded text-[8px] font-bold uppercase tracking-widest hover:bg-rose-600 transition-colors"
+                        >
+                          Yes
+                        </button>
+                        <button 
+                          onClick={() => setDeleteId(null)} 
+                          className="p-1 text-natural-muted hover:bg-natural-sidebar rounded transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ) : (
                       <>
                         <button 
-                          onClick={() => startEdit(cat.id, cat.name)}
+                          onClick={() => {
+                            setDeleteId(null);
+                            startEdit(cat.id, cat.name);
+                          }}
                           className="p-2 text-natural-muted hover:text-natural-olive transition-colors"
                           title="Edit"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => {
-                            if (confirm(`Remove group "${cat.name}"?`)) deleteCategory(cat.id);
-                          }}
+                          onClick={() => setDeleteId(cat.id)}
                           className="p-2 text-natural-muted hover:text-rose-500 transition-colors"
                           title="Delete"
                         >

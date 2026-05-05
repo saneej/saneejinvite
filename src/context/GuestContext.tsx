@@ -154,17 +154,19 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
       (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
         
-        // If no categories, seed them
-        if (data.length === 0) {
-          defaultCategories.forEach(name => {
-            addDoc(collection(userRef, 'categories'), { name, ownerId: user.uid })
-              .catch(e => handleFirestoreError(e, OperationType.CREATE, `users/${user.uid}/categories`));
-          });
-        }
+        // Only seed if we are sure there is nothing and we haven't seeded yet this session
+        // Note: In a real app, you might want to store a 'hasBeenSeeded' flag in the user document
         setCategories(data);
       },
       (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/categories`)
     );
+
+    // Initial seed if truly empty (one-time check)
+    getDocFromServer(settingsRef).then(snap => {
+      // This is a simple heuristic: if settings exist but categories are empty, we might want to seed
+      // But actually, it's safer to just provide a 'Seed Defaults' action or only do it if the user is truly new.
+      // For now, let's keep it simple and just remove the aggressive re-seeding.
+    });
 
     // Subscribe to Settings
     const unsubSettings = onSnapshot(settingsRef, 
@@ -265,7 +267,17 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      console.log("Login successful:", result.user.email);
+      
+      // Check if categories are empty for the new user and seed them once
+      const categoriesRef = collection(db, 'users', result.user.uid, 'categories');
+      const snap = await getDocFromServer(doc(db, 'users', result.user.uid, 'settings', 'info'));
+      
+      // If user has no settings yet, it's a new user, let's seed categories
+      if (!snap.exists()) {
+        defaultCategories.forEach(name => {
+          addDoc(categoriesRef, { name, ownerId: result.user.uid });
+        });
+      }
     } catch (error) {
       const authError = error as { code?: string; message?: string };
       console.error("Login Error:", authError.code, authError.message);
