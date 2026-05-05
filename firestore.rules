@@ -20,7 +20,7 @@ service cloud.firestore {
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.category is string && data.category.size() > 0
         && data.status in ['Not Invited', 'Invited', 'Confirmed', 'Not Coming']
-        && data.createdAt == request.time
+        && data.createdAt is timestamp
         && data.ownerId == request.auth.uid;
     }
 
@@ -48,7 +48,7 @@ service cloud.firestore {
       match /guests/{guestId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidGuest(incoming());
+        allow create: if isOwner(userId) && isValidGuest(incoming()) && incoming().createdAt == request.time;
         allow update: if isOwner(userId) && isValidGuest(incoming()) && (
           // Allow updating status and details, but keep ownerId and createdAt immutable
           incoming().ownerId == existing().ownerId &&

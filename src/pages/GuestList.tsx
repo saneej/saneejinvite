@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus, Guest } from '../types';
-import { Search, Phone, MessageSquare, Edit2, Trash2, X, Users, Heart } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Users } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -41,35 +41,32 @@ export function GuestList() {
   };
 
   return (
-    <div className="space-y-8 pb-20 md:pb-0 color-overlap min-h-screen">
-       <div className="absolute top-1/4 -right-20 w-80 h-80 bg-natural-accent/15 rounded-full blur-[100px] pointer-events-none" />
-
-      <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 relative z-10 pt-4">
+    <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-4 border-b border-natural-border/50 pb-8">
         <div>
-          <h2 className="text-4xl font-serif font-bold text-natural-olive mb-2">Guest List</h2>
-          <p className="text-natural-muted text-xs uppercase tracking-[0.2em] font-bold flex items-center gap-2">
-             <Heart className="w-3 h-3 fill-natural-accent text-natural-accent" />
-             {filteredGuests.length} people planning to celebrate with you
+          <h2 className="text-3xl font-serif font-bold text-natural-ink">Guest List</h2>
+          <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">
+            {filteredGuests.length} guests in your celebration circle
           </p>
         </div>
         
-        <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
-          <div className="relative group md:w-80">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted transition-colors group-focus-within:text-natural-olive" />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative group md:w-64">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted transition-colors group-focus-within:text-natural-olive" />
             <input
               type="text"
-              placeholder="Search guests..."
+              placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-natural pl-14"
+              className="w-full bg-white border border-natural-border px-10 py-2.5 rounded-xl text-xs outline-none focus:border-natural-olive transition-all"
             />
           </div>
           
-          <div className="flex gap-3 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+          <div className="flex gap-2">
             <select 
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-6 py-4 rounded-2xl bg-white/70 backdrop-blur-sm border border-natural-border/50 text-[10px] font-bold text-natural-olive uppercase tracking-widest outline-none focus:ring-4 focus:ring-natural-olive/5 transition-all shadow-sm cursor-pointer min-w-[140px]"
+              className="bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-olive uppercase tracking-widest outline-none cursor-pointer min-w-[140px]"
             >
               <option value="All">All Categories</option>
               {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
@@ -78,7 +75,7 @@ export function GuestList() {
             <select 
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-6 py-4 rounded-2xl bg-white/70 backdrop-blur-sm border border-natural-border/50 text-[10px] font-bold text-natural-muted uppercase tracking-widest outline-none focus:ring-4 focus:ring-natural-olive/5 transition-all shadow-sm cursor-pointer min-w-[140px]"
+              className="bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-muted uppercase tracking-widest outline-none cursor-pointer min-w-[140px]"
             >
               <option value="All">All Statuses</option>
               {Object.values(InvitationStatus).map(status => <option key={status} value={status}>{status}</option>)}
@@ -103,78 +100,73 @@ export function GuestList() {
           </p>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-8 p-1">
+        <div className="space-y-3">
           <AnimatePresence mode="popLayout">
-            {filteredGuests.map((guest, idx) => (
+            {filteredGuests.map((guest) => (
               <motion.div
                 layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: idx * 0.05 }}
                 key={guest.id}
-                className="group relative"
+                className="group"
               >
-                {/* Overlapping Background Card Effect */}
-                <div className="absolute inset-0 bg-natural-olive/5 rounded-[2.5rem] translate-x-3 translate-y-3 -z-10 transition-transform group-hover:translate-x-1 group-hover:translate-y-1" />
-                
-                <div className="glass-card p-8 border-none shadow-xl hover:shadow-2xl transition-all h-full flex flex-col">
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h4 className="text-2xl font-serif font-bold text-natural-ink group-hover:text-natural-olive transition-colors">{guest.name}</h4>
-                      <span className="inline-block mt-1 px-3 py-1 bg-natural-accent/20 text-natural-olive text-[10px] font-bold uppercase tracking-widest rounded-lg">
-                        {guest.category}
-                      </span>
+                <div className="bg-white p-4 rounded-xl border border-natural-border/30 hover:border-natural-olive/20 transition-all flex items-center gap-4">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-natural-border text-natural-olive focus:ring-0 cursor-pointer flex-shrink-0"
+                    checked={guest.status !== InvitationStatus.NOT_INVITED}
+                    onChange={(e) => {
+                      const newStatus = e.target.checked ? InvitationStatus.INVITED : InvitationStatus.NOT_INVITED;
+                      updateGuest(guest.id, { status: newStatus });
+                    }}
+                  />
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <h4 className="text-sm font-serif font-bold text-natural-ink truncate">{guest.name}</h4>
+                      <div className={cn("px-1.5 py-0.5 rounded text-[7px] uppercase font-bold tracking-tight whitespace-nowrap", statusColors[guest.status])}>
+                        {guest.status}
+                      </div>
                     </div>
-                    <div className={cn("px-4 py-1.5 rounded-full text-[9px] uppercase font-bold tracking-widest shadow-sm", statusColors[guest.status])}>
-                      {guest.status}
-                    </div>
+                    <p className="text-[9px] uppercase tracking-wider text-natural-muted font-medium">{guest.category}</p>
                   </div>
 
-                  <div className="space-y-3 flex-1">
-                    {guest.phone && (
-                      <div className="flex items-center gap-3 text-sm text-natural-muted font-medium bg-natural-sidebar/50 p-3 rounded-xl border border-natural-border/30">
-                        <Phone className="w-4 h-4 text-natural-olive" />
-                        {guest.phone}
-                      </div>
-                    )}
-
-                    {guest.notes && (
-                      <div className="relative p-5 bg-natural-bg/40 rounded-2xl border-l-4 border-natural-accent italic text-sm text-natural-ink/70 mt-4 leading-relaxed">
-                        "{guest.notes}"
-                      </div>
-                    )}
+                  <div className="hidden sm:block text-[11px] text-natural-muted font-light truncate max-w-[150px]">
+                    {guest.phone || (guest.notes && `"${guest.notes.substring(0, 20)}..."`)}
                   </div>
 
-                  <div className="flex items-center gap-4 mt-8 pt-6 border-t border-natural-border/30">
+                  <div className="flex items-center gap-2">
                     {guest.phone && (
                       <a
                         href={getWhatsAppLink(guest) || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-3 bg-natural-olive text-white py-3.5 rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-natural-ink hover:shadow-xl transition-all shadow-md group-hover:scale-105 active:scale-95"
+                        className="bg-natural-sidebar text-natural-olive px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-natural-olive hover:text-white transition-all flex items-center gap-1.5"
                       >
-                        <MessageSquare className="w-4 h-4" />
-                        Send Invite
+                        Invite
                       </a>
                     )}
+                    
                     <button
                       onClick={() => setEditingGuest(guest)}
-                      className="p-4 bg-white text-natural-muted hover:text-natural-olive hover:bg-natural-sidebar rounded-2xl border border-natural-border/50 transition-all shadow-sm active:scale-95"
-                      title="Edit Guest"
+                      className="p-1.5 text-natural-muted hover:text-natural-olive transition-colors sm:block hidden"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
+                    
+                    <div className="relative group/more sm:hidden">
+                       <button className="p-1.5 text-natural-muted"><X className="w-3.5 h-3.5 rotate-45" /></button>
+                       <div className="absolute right-0 bottom-full mb-2 bg-white border border-natural-border rounded-lg shadow-xl hidden group-hover/more:block p-1">
+                          <button onClick={() => setEditingGuest(guest)} className="p-2 text-natural-muted hover:text-natural-olive flex items-center gap-2 text-[10px] uppercase font-bold"><Edit2 className="w-3 h-3" /> Edit</button>
+                          <button onClick={() => { if (confirm(`Remove ${guest.name}?`)) deleteGuest(guest.id); }} className="p-2 text-rose-500 hover:bg-rose-50 flex items-center gap-2 text-[10px] uppercase font-bold"><Trash2 className="w-3 h-3" /> Delete</button>
+                       </div>
+                    </div>
+
                     <button
                       onClick={() => {
-                        if (confirm(`Remove ${guest.name} from the list?`)) {
-                          deleteGuest(guest.id);
-                        }
+                        if (confirm(`Remove ${guest.name}?`)) deleteGuest(guest.id);
                       }}
-                      className="p-4 bg-white text-natural-muted hover:text-rose-500 hover:bg-rose-50 rounded-2xl border border-natural-border/50 transition-all shadow-sm active:scale-95"
-                      title="Delete Guest"
+                      className="p-1.5 text-natural-muted hover:text-rose-500 transition-colors hidden sm:block"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
