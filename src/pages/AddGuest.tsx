@@ -416,10 +416,10 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
                 className="px-6 pb-6"
               >
                 <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 text-[11px] text-emerald-900 leading-relaxed font-serif whitespace-pre-wrap">
-                  {settings.whatsappTemplate
+                  {(settings.whatsappTemplate || '')
                     .replace('[Name]', name || 'Guest Name')
-                    .replace('[Date]', settings.weddingDate)
-                    .replace('[Venue]', settings.venue)}
+                    .replace('[Date]', settings.weddingDate || '')
+                    .replace('[Venue]', settings.venue || '')}
                 </div>
                 <p className="text-[9px] text-natural-muted mt-2 italic">* Edit template in Settings</p>
               </motion.div>

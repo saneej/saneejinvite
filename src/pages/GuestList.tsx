@@ -52,9 +52,10 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
 
   const getWhatsAppLink = (guest: Guest) => {
     if (!guest.phone) return null;
-    const date = settings.weddingDate;
-    const venue = settings.venue;
-    const message = settings.whatsappTemplate
+    const date = settings.weddingDate || '';
+    const venue = settings.venue || '';
+    const template = settings.whatsappTemplate || '';
+    const message = template
       .replace('[Name]', guest.name)
       .replace('[Date]', date)
       .replace('[Venue]', venue);

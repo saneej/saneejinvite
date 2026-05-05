@@ -29,10 +29,11 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 5);
 
-  const weddingDate = new Date(settings.weddingDate);
+  const weddingDate = settings.weddingDate ? new Date(settings.weddingDate) : new Date();
+  const isValidDate = !isNaN(weddingDate.getTime());
   const today = new Date();
   const diffTime = weddingDate.getTime() - today.getTime();
-  const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const daysRemaining = isValidDate ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
 
   const confirmationRate = totalGuests > 0 ? Math.round((confirmedCount / totalGuests) * 100) : 0;
   const invitationRate = totalGuests > 0 ? Math.round((invitedCount / totalGuests) * 100) : 0;
@@ -69,7 +70,11 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
           <div className="bg-natural-olive/10 border border-natural-olive/20 rounded-2xl p-4 flex items-center gap-4">
             <div className="text-right">
               <p className="text-[10px] uppercase font-bold text-natural-olive tracking-widest leading-none">Wedding Day</p>
-              <p className="text-sm font-serif font-bold text-natural-ink mt-1">{new Date(settings.weddingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+              <p className="text-sm font-serif font-bold text-natural-ink mt-1">
+                {isValidDate 
+                  ? weddingDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                  : 'Date not set'}
+              </p>
             </div>
             <div className="h-10 w-[1px] bg-natural-olive/20" />
             <div className="flex flex-col items-center">
