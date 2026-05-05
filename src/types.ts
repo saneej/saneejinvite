@@ -26,6 +26,8 @@ export interface WeddingSettings {
   weddingDate: string;
   venue: string;
   whatsappTemplate: string;
+  greetingMessage: string;
+  invitationTone: string;
 }
 
-export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings';
+export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite';

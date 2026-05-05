@@ -88,6 +88,8 @@ const defaultSettings: WeddingSettings = {
   weddingDate: '2024-09-24',
   venue: 'The Glass House Garden',
   whatsappTemplate: "Hello [Name]! We would love to have you at our wedding on [Date] at [Venue]. Please let us know if you can join us!",
+  greetingMessage: "Assalamu alaikum [Name]!",
+  invitationTone: "Warm, respectful, and traditional with a touch of elegance.",
 };
 
 const GuestContext = createContext<GuestContextType | undefined>(undefined);

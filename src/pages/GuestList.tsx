@@ -50,11 +50,14 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
     setSelectedIds([]);
   };
 
-  const getWhatsAppLink = (guest: Guest) => {
+  const getWhatsAppLink = (guest: Guest, type: 'greeting' | 'invitation') => {
     if (!guest.phone) return null;
     const date = settings.weddingDate || '';
     const venue = settings.venue || '';
-    const template = settings.whatsappTemplate || '';
+    const template = type === 'greeting' ? settings.greetingMessage : settings.whatsappTemplate;
+    
+    if (!template) return null;
+
     const message = template
       .replace('[Name]', guest.name)
       .replace('[Date]', date)
@@ -197,22 +200,37 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
                     {guest.phone || (guest.notes && `"${guest.notes.substring(0, 20)}..."`)}
                   </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       {guest.phone && !deleteId && (
-                        <a
-                          href={getWhatsAppLink(guest) || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => {
-                            if (guest.status === InvitationStatus.NOT_INVITED) {
-                              updateGuest(guest.id, { status: InvitationStatus.INVITED });
-                            }
-                          }}
-                          className="bg-natural-sidebar text-natural-olive px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-natural-olive hover:text-white transition-all flex items-center gap-1.5"
-                        >
-                          Invite
-                        </a>
+                          <div className="flex bg-natural-sidebar/50 rounded-lg border border-natural-border/30 overflow-hidden shadow-sm">
+                            <a
+                              href={getWhatsAppLink(guest, 'greeting') || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 text-[8px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive hover:text-white transition-all border-r border-natural-border/20 flex flex-col items-center justify-center min-w-[50px] leading-none"
+                              title="Send Greeting first"
+                            >
+                              <span className="opacity-60 mb-0.5">1.</span>
+                              Greet
+                            </a>
+                            <a
+                              href={getWhatsAppLink(guest, 'invitation') || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => {
+                                if (guest.status === InvitationStatus.NOT_INVITED) {
+                                  updateGuest(guest.id, { status: InvitationStatus.INVITED });
+                                }
+                              }}
+                              className="px-3 py-1.5 text-[8px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive hover:text-white transition-all flex flex-col items-center justify-center min-w-[50px] leading-none"
+                              title="Send Invitation"
+                            >
+                              <span className="opacity-60 mb-0.5">2.</span>
+                              Invite
+                            </a>
+                          </div>
                       )}
+                    </div>
 
                       {deleteId === guest.id ? (
                         <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-1">
@@ -260,7 +278,6 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
                           </button>
                         </>
                       )}
-                    </div>
                 </div>
               </motion.div>
             ))}

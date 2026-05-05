@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, UserPlus, Tags, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Tags, Settings, LogOut, Send } from 'lucide-react';
 import { View } from '../types';
 import { cn } from '../lib/utils';
 import { useGuests } from '../context/GuestContext';
@@ -13,6 +13,7 @@ const menuItems: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'guests', label: 'Guest List', icon: Users },
   { id: 'add', label: 'Add Guest', icon: UserPlus },
+  { id: 'invite', label: 'Invite', icon: Send },
   { id: 'categories', label: 'Categories', icon: Tags },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
@@ -23,9 +24,9 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   return (
     <aside className="w-64 bg-white border-r border-natural-border h-screen sticky top-0 hidden md:flex flex-col p-8">
       <div className="mb-12">
-        <h1 className="text-xl font-serif font-bold text-natural-olive tracking-tight">Moriah</h1>
+        <h1 className="text-xl font-serif font-bold text-natural-olive tracking-tight text-nowrap">SNJ Wed inviter</h1>
         <p className="text-[9px] uppercase tracking-[0.2em] text-natural-muted mt-1 font-medium opacity-70">
-          Wedding Planner
+          Wedding Manager
         </p>
       </div>
       

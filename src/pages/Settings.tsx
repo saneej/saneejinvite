@@ -101,16 +101,45 @@ export function Settings() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted flex justify-between">
-                <span>WhatsApp Template</span>
-                <span className="opacity-50 lowercase tracking-normal">Markers: [Name], [Date], [Venue]</span>
-              </label>
-              <textarea 
-                value={formData.whatsappTemplate} 
-                onChange={(e) => setFormData({...formData, whatsappTemplate: e.target.value})}
-                className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-4 rounded-xl text-sm outline-none focus:border-natural-olive transition-all h-32 resize-none"
-              />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted flex justify-between">
+                  <span>Greeting Message</span>
+                  <span className="opacity-50 lowercase tracking-normal">Markers: [Name]</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={formData.greetingMessage} 
+                  onChange={(e) => setFormData({...formData, greetingMessage: e.target.value})}
+                  placeholder="Assalamu alaikum [Name]!"
+                  className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted flex justify-between">
+                  <span>WhatsApp Invitation Template</span>
+                  <span className="opacity-50 lowercase tracking-normal">Markers: [Name], [Date], [Venue]</span>
+                </label>
+                <textarea 
+                  value={formData.whatsappTemplate} 
+                  onChange={(e) => setFormData({...formData, whatsappTemplate: e.target.value})}
+                  className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-4 rounded-xl text-sm outline-none focus:border-natural-olive transition-all h-32 resize-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted flex justify-between">
+                  <span>AI Invitation Tone</span>
+                  <span className="opacity-50 lowercase tracking-normal">Describe your desired tone for AI messages</span>
+                </label>
+                <textarea 
+                  value={formData.invitationTone} 
+                  onChange={(e) => setFormData({...formData, invitationTone: e.target.value})}
+                  placeholder="e.g., Warm, respectful, traditional with elegance."
+                  className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-4 rounded-xl text-sm outline-none focus:border-natural-olive transition-all h-24 resize-none"
+                />
+              </div>
             </div>
 
             <button 

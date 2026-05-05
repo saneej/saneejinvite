@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useGuests } from '../context/GuestContext';
-import { InvitationStatus, View } from '../types';
+import { InvitationStatus, View, Guest } from '../types';
 import { AlertCircle, CheckCircle2, Upload, Sparkles, X, Loader2, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { extractGuestsFromImage } from '../services/aiService';
@@ -19,7 +19,7 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<InvitationStatus>(InvitationStatus.NOT_INVITED);
   const [showPreview, setShowPreview] = useState(false);
-
+  
   // Bulk Mode State
   const [bulkText, setBulkText] = useState('');
 
@@ -32,6 +32,21 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
   const [showSuccess, setShowSuccess] = useState(false);
 
   const recentlyAdded = guests.slice(-5).reverse();
+
+  const similarGuests = React.useMemo(() => {
+    if (name.trim().length < 2) return [];
+
+    const search = name.toLowerCase().trim();
+    return guests.filter(g => {
+      const guestName = g.name.toLowerCase();
+      if (search.includes(guestName) || guestName.includes(search)) return true;
+      
+      const words1 = search.split(/\s+/).filter(w => w.length > 2);
+      const words2 = guestName.split(/\s+/).filter(w => w.length > 2);
+      
+      return words1.some(w => words2.some(w2 => w2.includes(w) || w.includes(w2)));
+    }).slice(0, 3);
+  }, [name, guests]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -116,6 +131,20 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
     setShowWarning(false);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
+  };
+
+  const getWhatsAppLink = (guest: Guest, type: 'greeting' | 'invitation') => {
+    if (!guest.phone) return null;
+    const template = type === 'greeting' ? settings.greetingMessage : settings.whatsappTemplate;
+    if (!template) return null;
+    
+    const message = template
+      .replace('[Name]', guest.name)
+      .replace('[Date]', settings.weddingDate || '')
+      .replace('[Venue]', settings.venue || '');
+    
+    const cleanPhone = guest.phone.replace(/\D/g, '');
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -333,7 +362,7 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
             className="bg-white p-8 md:p-10 rounded-2xl border border-natural-border/60 shadow-sm space-y-8 mx-4"
           >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Guest Name</label>
             <input
               type="text"
@@ -343,6 +372,33 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
               onChange={(e) => setName(e.target.value)}
               className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
             />
+            <AnimatePresence>
+              {similarGuests.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute z-10 left-0 right-0 top-full mt-1 bg-white border border-natural-border shadow-xl rounded-xl p-4 space-y-3"
+                >
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-natural-olive flex items-center gap-1.5">
+                    <AlertCircle className="w-3 h-3" />
+                    Wait, is this person already listed?
+                  </p>
+                  <div className="space-y-2">
+                    {similarGuests.map(g => (
+                      <div key={g.id} className="flex items-center justify-between bg-natural-sidebar/30 p-2.5 rounded-lg text-xs">
+                        <div className="min-w-0">
+                          <p className="font-bold text-natural-ink truncate">{g.name}</p>
+                          <p className="text-[9px] text-natural-muted uppercase font-medium">{g.category}</p>
+                        </div>
+                        <span className="text-[8px] bg-white border border-natural-border px-1.5 py-0.5 rounded uppercase font-bold text-natural-muted">Existing</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[8px] text-natural-muted italic">If they are different people, you can continue.</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Contact Info</label>
@@ -393,18 +449,18 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
           />
         </div>
 
-        {/* WhatsApp Preview Toggle */}
-        <div className="bg-natural-sidebar/20 rounded-2xl border border-natural-border/30 overflow-hidden">
+        {/* Message Preview Section */}
+        <div className="bg-natural-sidebar/10 rounded-2xl border border-natural-border/30 overflow-hidden">
           <button 
             type="button"
             onClick={() => setShowPreview(!showPreview)}
-            className="w-full px-6 py-4 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-natural-muted hover:text-natural-olive transition-colors"
+            className="w-full px-6 py-4 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive/5 transition-colors"
           >
             <div className="flex items-center gap-2">
               {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              Invite Message Preview
+              Live Message Preview
             </div>
-            <span className="text-[8px] opacity-60">View template example</span>
+            <span className="text-[8px] opacity-60 font-medium">{showPreview ? 'Hide Preview' : 'Show Preview'}</span>
           </button>
           
           <AnimatePresence>
@@ -413,15 +469,41 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="px-6 pb-6"
+                className="px-6 pb-6 space-y-4"
               >
-                <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 text-[11px] text-emerald-900 leading-relaxed font-serif whitespace-pre-wrap">
-                  {(settings.whatsappTemplate || '')
-                    .replace('[Name]', name || 'Guest Name')
-                    .replace('[Date]', settings.weddingDate || '')
-                    .replace('[Venue]', settings.venue || '')}
+                <div className="space-y-2">
+                  <p className="text-[8px] uppercase font-bold text-natural-olive/60 tracking-wider flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-natural-olive"></span>
+                    Step 1: The Greeting
+                  </p>
+                  <div className="relative group">
+                    <div className="bg-white p-4 rounded-2xl rounded-tl-none border border-natural-border/30 text-[11px] text-natural-ink leading-relaxed font-serif italic shadow-sm relative z-0">
+                      {(settings.greetingMessage || '')
+                        .replace('[Name]', name || 'Guest Name')}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[9px] text-natural-muted mt-2 italic">* Edit template in Settings</p>
+
+                <div className="space-y-2">
+                  <p className="text-[8px] uppercase font-bold text-emerald-600/60 tracking-wider flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Step 2: The Invitation
+                  </p>
+                  <div className="relative">
+                    <div className="bg-emerald-50/50 p-4 rounded-2xl rounded-tl-none border border-emerald-100/50 text-[11px] text-emerald-900 leading-relaxed font-serif whitespace-pre-wrap shadow-sm">
+                      {(settings.whatsappTemplate || '')
+                        .replace('[Name]', name || 'Guest Name')
+                        .replace('[Date]', settings.weddingDate || '')
+                        .replace('[Venue]', settings.venue || '')}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="pt-2 flex items-center gap-2 opacity-40">
+                  <div className="flex-1 h-[1px] bg-natural-border"></div>
+                  <p className="text-[7px] uppercase font-bold tracking-tighter">Preview only • Customize in Settings</p>
+                  <div className="flex-1 h-[1px] bg-natural-border"></div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -506,6 +588,26 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
                   <p className="text-[9px] uppercase tracking-wider text-natural-muted font-medium">{guest.category}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {guest.phone && (
+                    <div className="flex bg-natural-sidebar/50 rounded-lg border border-natural-border/30 overflow-hidden">
+                      <a
+                        href={getWhatsAppLink(guest, 'greeting') || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 text-[7px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive hover:text-white transition-all border-r border-natural-border/20"
+                      >
+                        Greet
+                      </a>
+                      <a
+                        href={getWhatsAppLink(guest, 'invitation') || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 text-[7px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive hover:text-white transition-all"
+                      >
+                        Invite
+                      </a>
+                    </div>
+                  )}
                    <div className={cn(
                     "px-1.5 py-0.5 rounded text-[7px] uppercase font-bold tracking-tight",
                     guest.status === InvitationStatus.NOT_INVITED ? "bg-slate-50 text-slate-400" : "bg-emerald-50 text-emerald-600"

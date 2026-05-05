@@ -53,3 +53,36 @@ export async function extractGuestsFromImage(base64Image: string, mimeType: stri
     throw new Error("Failed to extract names from image. Please try a clearer screenshot.");
   }
 }
+
+export async function generatePersonalizedInvitation(
+  guestName: string,
+  category: string,
+  tone: string,
+  weddingDate: string,
+  venue: string
+) {
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `
+        Write a short, heart-warming wedding invitation message for a guest named "${guestName}".
+        The guest is in the "${category}" category (e.g., Family, Friend, Colleage).
+        The wedding is on ${weddingDate} at ${venue}.
+        
+        Your tone should be: ${tone}
+        
+        Keep the message concise (suitable for WhatsApp). 
+        Include the date and venue clearly.
+        The message should feel personal to their relationship/category.
+        Do not use placeholders, write the final text.
+        Return ONLY the message text.
+      `,
+    });
+
+    return response.text?.trim() || "";
+  } catch (error) {
+    console.error("AI Personalization Error:", error);
+    throw error;
+  }
+}

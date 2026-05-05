@@ -7,6 +7,7 @@ import { GuestList } from './pages/GuestList';
 import { AddGuest } from './pages/AddGuest';
 import { Categories } from './pages/Categories';
 import { Settings } from './pages/Settings';
+import Invite from './pages/Invite';
 import { AnimatePresence, motion } from 'motion/react';
 import { Heart, LogIn, Loader2 } from 'lucide-react';
 
@@ -37,7 +38,7 @@ function AppContent() {
           <div className="w-20 h-20 bg-natural-olive text-white rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-lg rotate-3 group overflow-hidden">
             <Heart className="w-10 h-10 fill-current group-hover:scale-125 transition-transform duration-500" />
           </div>
-          <h1 className="text-4xl font-serif font-bold text-natural-olive mb-4">Wedding Manager</h1>
+          <h1 className="text-4xl font-serif font-bold text-natural-olive mb-4">SNJ Wed inviter</h1>
           <p className="text-natural-muted text-sm leading-relaxed mb-10">Welcome to your personal guest list manager. Sign in to start organizing your special day.</p>
           
           <button 
@@ -61,6 +62,7 @@ function AppContent() {
       case 'add': return <AddGuest onViewChange={setActiveView} />;
       case 'categories': return <Categories />;
       case 'settings': return <Settings />;
+      case 'invite': return <Invite />;
       default: return <Dashboard onViewChange={setActiveView} />;
     }
   };

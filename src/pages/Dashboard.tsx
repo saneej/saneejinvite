@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus } from '../types';
-import { CheckCircle2, Send, HelpCircle, Users, UserPlus, Tags, Settings as SettingsIcon } from 'lucide-react';
+import { CheckCircle2, Send, HelpCircle, Users, UserPlus, Tags } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   BarChart, 
@@ -168,13 +168,13 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
           <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">Categories</span>
         </button>
         <button 
-          onClick={() => onViewChange('settings')}
-          className="flex items-center gap-3 p-4 bg-white border border-natural-border text-natural-olive rounded-2xl hover:border-natural-olive transition-all shadow-sm group"
+          onClick={() => onViewChange('invite')}
+          className="flex items-center gap-3 p-4 bg-white border border-natural-border text-emerald-600 rounded-2xl hover:border-emerald-600 transition-all shadow-sm group"
         >
-          <div className="bg-natural-sidebar p-2 rounded-xl group-hover:scale-110 transition-transform">
-            <SettingsIcon className="w-4 h-4" />
+          <div className="bg-emerald-50 p-2 rounded-xl group-hover:scale-110 transition-transform">
+            <Send className="w-4 h-4" />
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">Settings</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">Invite Station</span>
         </button>
       </section>
 
@@ -186,6 +186,12 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
               <h3 className="text-lg font-serif font-bold text-natural-ink">Quick Invite</h3>
               <p className="text-[10px] text-natural-muted uppercase tracking-widest">Recently added, not yet invited</p>
             </div>
+            <button 
+              onClick={() => onViewChange('invite')}
+              className="text-[10px] font-bold uppercase underline tracking-widest text-natural-olive hover:text-natural-ink transition-colors"
+            >
+              Open Invite Station
+            </button>
           </div>
           <div className="space-y-3">
             {pendingGuests.map((guest) => (
