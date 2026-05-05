@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isOwner(userId) { return request.auth.uid == userId; }
+
+    // Entity Validations
+    function isValidGuest(data) {
+      return data.keys().hasAll(['name', 'category', 'status', 'createdAt', 'ownerId'])
+        && data.keys().size() <= 7 // allow optional phone/notes
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.category is string && data.category.size() > 0
+        && data.status in ['Not Invited', 'Invited', 'Confirmed', 'Not Coming']
+        && data.createdAt == request.time
+        && data.ownerId == request.auth.uid;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'ownerId'])
+        && data.keys().size() == 2
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 50
+        && data.ownerId == request.auth.uid;
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['brideName', 'groomName', 'weddingDate', 'venue', 'whatsappTemplate', 'ownerId'])
+        && data.keys().size() == 6
+        && data.brideName is string && data.brideName.size() <= 100
+        && data.groomName is string && data.groomName.size() <= 100
+        && data.weddingDate is string && data.weddingDate.size() <= 20
+        && data.venue is string && data.venue.size() <= 200
+        && data.whatsappTemplate is string && data.whatsappTemplate.size() <= 1000
+        && data.ownerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      
+      match /guests/{guestId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidGuest(incoming());
+        allow update: if isOwner(userId) && isValidGuest(incoming()) && (
+          // Allow updating status and details, but keep ownerId and createdAt immutable
+          incoming().ownerId == existing().ownerId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().diff(existing()).affectedKeys().hasAny(['name', 'phone', 'category', 'notes', 'status'])
+        );
+        allow delete: if isOwner(userId);
+      }
+
+      match /categories/{categoryId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidCategory(incoming());
+        allow update: if isOwner(userId) && isValidCategory(incoming()) && (
+          incoming().ownerId == existing().ownerId &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name'])
+        );
+        allow delete: if isOwner(userId);
+      }
+
+      match /settings/{settingId} {
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSettings(incoming());
+        allow update: if isOwner(userId) && isValidSettings(incoming()) && (
+          incoming().ownerId == existing().ownerId
+        );
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

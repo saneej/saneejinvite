@@ -1,0 +1,301 @@
+import React, { createContext, useContext, useMemo, useEffect, useState, useCallback } from 'react';
+import { Guest, Category, WeddingSettings } from '../types';
+import { 
+  collection, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  setDoc, 
+  getDocFromServer,
+  serverTimestamp
+} from 'firebase/firestore';
+import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User, signOut } from 'firebase/auth';
+import { db, auth } from '../lib/firebase';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+interface GuestContextType {
+  guests: Guest[];
+  categories: Category[];
+  settings: WeddingSettings;
+  user: User | null;
+  isLoading: boolean;
+  addGuest: (guest: Omit<Guest, 'id' | 'createdAt'>) => Promise<void>;
+  updateGuest: (id: string, updates: Partial<Guest>) => Promise<void>;
+  deleteGuest: (id: string) => Promise<void>;
+  addCategory: (name: string) => Promise<void>;
+  updateCategory: (id: string, name: string) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  updateSettings: (settings: WeddingSettings) => Promise<void>;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
+}
+
+const defaultCategories: string[] = [
+  'Family', 'School Friends', 'College Friends', 'Town Friends', 'UAE Friends', 'Work Friends', 'Neighbours', 'Special Guests'
+];
+
+const defaultSettings: WeddingSettings = {
+  brideName: 'Emma',
+  groomName: 'James',
+  weddingDate: '2024-09-24',
+  venue: 'The Glass House Garden',
+  whatsappTemplate: "Hello [Name]! We would love to have you at our wedding on [Date] at [Venue]. Please let us know if you can join us!",
+};
+
+const GuestContext = createContext<GuestContextType | undefined>(undefined);
+
+export function GuestProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [settings, setSettings] = useState<WeddingSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Validate Connection to Firestore
+  useEffect(() => {
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if(error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration.");
+        }
+      }
+    }
+    testConnection();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (!u) {
+        setGuests([]);
+        setCategories([]);
+        setIsLoading(false);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const userRef = doc(db, 'users', user.uid);
+    const guestsRef = collection(userRef, 'guests');
+    const categoriesRef = collection(userRef, 'categories');
+    const settingsRef = doc(userRef, 'settings', 'info');
+
+    // Subscribe to Guests
+    const unsubGuests = onSnapshot(guestsRef, 
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return { 
+            id: doc.id, 
+            ...d,
+            createdAt: d.createdAt?.toMillis?.() || Date.now()
+          } as Guest;
+        });
+        setGuests(data);
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/guests`)
+    );
+
+    // Subscribe to Categories
+    const unsubCategories = onSnapshot(categoriesRef, 
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+        
+        // If no categories, seed them
+        if (data.length === 0) {
+          defaultCategories.forEach(name => {
+            addDoc(collection(userRef, 'categories'), { name, ownerId: user.uid })
+              .catch(e => handleFirestoreError(e, OperationType.CREATE, `users/${user.uid}/categories`));
+          });
+        }
+        setCategories(data);
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/categories`)
+    );
+
+    // Subscribe to Settings
+    const unsubSettings = onSnapshot(settingsRef, 
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setSettings(docSnap.data() as WeddingSettings);
+        } else {
+          setDoc(settingsRef, { ...defaultSettings, ownerId: user.uid })
+            .catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/settings/info`));
+        }
+        setIsLoading(false);
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, `users/${user.uid}/settings/info`)
+    );
+
+    return () => {
+      unsubGuests();
+      unsubCategories();
+      unsubSettings();
+    };
+  }, [user]);
+
+  const addGuest = useCallback(async (guestData: Omit<Guest, 'id' | 'createdAt'>) => {
+    if (!user) return;
+    const path = `users/${user.uid}/guests`;
+    try {
+      await addDoc(collection(db, 'users', user.uid, 'guests'), {
+        ...guestData,
+        ownerId: user.uid,
+        createdAt: serverTimestamp(),
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, path);
+    }
+  }, [user]);
+
+  const updateGuest = useCallback(async (id: string, updates: Partial<Guest>) => {
+    if (!user) return;
+    const path = `users/${user.uid}/guests/${id}`;
+    try {
+      await updateDoc(doc(db, path), updates);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, path);
+    }
+  }, [user]);
+
+  const deleteGuest = useCallback(async (id: string) => {
+    if (!user) return;
+    const path = `users/${user.uid}/guests/${id}`;
+    try {
+      await deleteDoc(doc(db, path));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, path);
+    }
+  }, [user]);
+
+  const addCategory = useCallback(async (name: string) => {
+    if (!user) return;
+    const path = `users/${user.uid}/categories`;
+    try {
+      await addDoc(collection(db, path), { name, ownerId: user.uid });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, path);
+    }
+  }, [user]);
+
+  const updateCategory = useCallback(async (id: string, name: string) => {
+    if (!user) return;
+    const path = `users/${user.uid}/categories/${id}`;
+    try {
+      await updateDoc(doc(db, path), { name });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, path);
+    }
+  }, [user]);
+
+  const deleteCategory = useCallback(async (id: string) => {
+    if (!user) return;
+    const path = `users/${user.uid}/categories/${id}`;
+    try {
+      await deleteDoc(doc(db, path));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, path);
+    }
+  }, [user]);
+
+  const updateSettings = useCallback(async (newSettings: WeddingSettings) => {
+    if (!user) return;
+    const path = `users/${user.uid}/settings/info`;
+    try {
+      await setDoc(doc(db, path), { ...newSettings, ownerId: user.uid });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, path);
+    }
+  }, [user]);
+
+  const login = useCallback(async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  const logout = useCallback(() => signOut(auth), []);
+
+  const value = useMemo(() => ({
+    guests,
+    categories,
+    settings,
+    user,
+    isLoading,
+    addGuest,
+    updateGuest,
+    deleteGuest,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    updateSettings,
+    login,
+    logout,
+  }), [guests, categories, settings, user, isLoading, addGuest, updateGuest, deleteGuest, addCategory, updateCategory, deleteCategory, updateSettings, login, logout]);
+
+  return <GuestContext.Provider value={value}>{children}</GuestContext.Provider>;
+}
+
+export function useGuests() {
+  const context = useContext(GuestContext);
+  if (!context) {
+    throw new Error('useGuests must be used within a GuestProvider');
+  }
+  return context;
+}

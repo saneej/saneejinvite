@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "Guest": {
+      "title": "Guest",
+      "description": "A wedding guest entry",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the guest" },
+        "phone": { "type": "string", "description": "Phone or WhatsApp number" },
+        "category": { "type": "string", "description": "Category name" },
+        "notes": { "type": "string", "description": "Extra details" },
+        "status": { "type": "string", "enum": ["Not Invited", "Invited", "Confirmed", "Not Coming"] },
+        "createdAt": { "type": "number", "description": "Timestamp" },
+        "ownerId": { "type": "string", "description": "User ID of the owner" }
+      },
+      "required": ["name", "category", "status", "createdAt", "ownerId"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "A guest category",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the category" },
+        "ownerId": { "type": "string", "description": "User ID of the owner" }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "WeddingSettings": {
+      "title": "Wedding Settings",
+      "description": "Global settings for the wedding",
+      "type": "object",
+      "properties": {
+        "brideName": { "type": "string" },
+        "groomName": { "type": "string" },
+        "weddingDate": { "type": "string" },
+        "venue": { "type": "string" },
+        "whatsappTemplate": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["brideName", "groomName", "weddingDate", "venue", "whatsappTemplate", "ownerId"]
+    }
+  },
+  "firestore": {
+    "users/{userId}/guests/{guestId}": {
+      "schema": "Guest",
+      "description": "Collection of guests for a specific user"
+    },
+    "users/{userId}/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Collection of categories for a specific user"
+    },
+    "users/{userId}/settings/info": {
+      "schema": "WeddingSettings",
+      "description": "Wedding settings for a specific user"
+    }
+  }
+}
