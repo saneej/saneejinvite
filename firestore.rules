@@ -32,13 +32,17 @@ service cloud.firestore {
     }
 
     function isValidSettings(data) {
-      return data.keys().hasAll(['brideName', 'groomName', 'weddingDate', 'venue', 'whatsappTemplate', 'ownerId'])
-        && data.keys().size() == 6
+      return data.keys().hasAll(['brideName', 'groomName', 'weddingDate', 'venue', 'whatsappTemplate', 'greetingMessage', 'invitationTone', 'telegramEnabled', 'ownerId'])
+        && data.keys().size() <= 10
         && data.brideName is string && data.brideName.size() <= 100
         && data.groomName is string && data.groomName.size() <= 100
-        && data.weddingDate is string && data.weddingDate.size() <= 20
-        && data.venue is string && data.venue.size() <= 200
-        && data.whatsappTemplate is string && data.whatsappTemplate.size() <= 1000
+        && data.weddingDate is string && data.weddingDate.size() <= 100
+        && data.venue is string && data.venue.size() <= 500
+        && data.whatsappTemplate is string && data.whatsappTemplate.size() <= 2000
+        && data.greetingMessage is string && data.greetingMessage.size() <= 500
+        && data.invitationTone is string && data.invitationTone.size() <= 500
+        && data.telegramEnabled is bool
+        && (data.get('telegramBotToken', '') is string)
         && data.ownerId == request.auth.uid;
     }
 

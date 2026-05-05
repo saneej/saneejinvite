@@ -35,9 +35,13 @@
         "weddingDate": { "type": "string" },
         "venue": { "type": "string" },
         "whatsappTemplate": { "type": "string" },
+        "greetingMessage": { "type": "string" },
+        "invitationTone": { "type": "string" },
+        "telegramBotToken": { "type": "string" },
+        "telegramEnabled": { "type": "boolean" },
         "ownerId": { "type": "string" }
       },
-      "required": ["brideName", "groomName", "weddingDate", "venue", "whatsappTemplate", "ownerId"]
+      "required": ["brideName", "groomName", "weddingDate", "venue", "whatsappTemplate", "greetingMessage", "invitationTone", "telegramEnabled", "ownerId"]
     }
   },
   "firestore": {

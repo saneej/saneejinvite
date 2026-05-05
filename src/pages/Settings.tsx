@@ -157,33 +157,29 @@ export function Settings() {
               type="submit"
               className="w-full bg-natural-olive text-white py-4 rounded-lg text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-natural-ink transition-colors shadow-sm"
             >
-              {isSaved ? 'Settings Saved' : 'Save Profile Changes'}
+              {isSaved ? 'Settings Saved' : 'Save All Changes'}
             </button>
-          </motion.form>
 
-          {/* Telegram Bot Integration */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm space-y-6"
-          >
-            <div className="flex items-center gap-3 border-b border-natural-border pb-4">
-              <div className="bg-blue-50 p-2 rounded-xl">
-                <Bot className="w-5 h-5 text-blue-600" />
+            {/* Telegram Bot Integration - NOW INSIDE FORM */}
+            <div className="pt-8 border-t border-natural-border/50 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-50 p-2 rounded-xl">
+                  <Bot className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-serif font-bold text-natural-ink">Telegram Bot Integration</h3>
+                  <p className="text-[9px] text-natural-muted uppercase font-bold tracking-widest">Add guests via Telegram</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-serif font-bold text-natural-ink">Telegram Bot Integration</h3>
-                <p className="text-[9px] text-natural-muted uppercase font-bold tracking-widest">Add guests via Telegram</p>
-              </div>
-            </div>
 
-            <div className="space-y-6">
               <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex gap-3">
                 <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                 <div className="space-y-2">
                   <p className="text-[11px] text-blue-900 leading-relaxed">
-                    Create a bot using <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="font-bold underline">@BotFather</a> on Telegram. 
-                    Set the <strong>Webhook URL</strong> below in your bot settings.
+                    1. Create a bot using <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="font-bold underline">@BotFather</a>.<br />
+                    2. Paste the <strong>Bot Token</strong> below.<br />
+                    3. Click <strong>Save All Changes</strong>.<br />
+                    4. Click <strong>Activate Webhook Now</strong> to link them.
                   </p>
                 </div>
               </div>
@@ -191,10 +187,10 @@ export function Settings() {
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Bot Token</label>
                 <input 
-                  type="password" 
+                  type="text" 
                   value={formData.telegramBotToken || ''} 
                   onChange={(e) => setFormData({...formData, telegramBotToken: e.target.value})}
-                  placeholder="Paste your bot token here"
+                  placeholder="Paste your bot token (e.g. 123456:ABC...)"
                   className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none focus:border-natural-olive transition-all"
                 />
               </div>
@@ -209,14 +205,29 @@ export function Settings() {
                     className="flex-1 bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-[10px] font-mono outline-none"
                   />
                   <button 
+                    type="button"
                     onClick={copyToClipboard}
                     className="px-4 bg-natural-sidebar border border-natural-border/50 rounded-xl hover:bg-natural-border/20 transition-all"
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-natural-muted" />}
                   </button>
                 </div>
-                <p className="text-[9px] text-natural-muted italic">Note: Make sure to set TELEGRAM_BOT_TOKEN in your app's secrets.</p>
+                <p className="text-[9px] text-natural-muted italic">This URL is unique to your account.</p>
               </div>
+
+              {formData.telegramBotToken && (
+                <div className="pt-2">
+                  <a 
+                    href={`https://api.telegram.org/bot${formData.telegramBotToken}/setWebhook?url=${encodeURIComponent(webhookUrl)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
+                  >
+                    Activate Webhook Now
+                  </a>
+                  {!settings.telegramBotToken && <p className="text-[9px] text-blue-600 mt-2 font-medium">Note: You must click "Save All Changes" for the bot to start responding.</p>}
+                </div>
+              )}
 
               <div className="flex items-center justify-between p-4 bg-natural-sidebar/20 rounded-xl border border-natural-border/30">
                 <div>
@@ -242,7 +253,7 @@ export function Settings() {
                 </button>
               </div>
             </div>
-          </motion.div>
+          </motion.form>
         </div>
 
         <div className="space-y-6">
