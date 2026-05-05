@@ -119,7 +119,7 @@ export default function Invite() {
                         <div className="space-y-2">
                           <p className="text-[8px] uppercase font-bold text-natural-olive/60 ml-1 tracking-wider">Step 1: Greeting</p>
                           <div className="bg-natural-sidebar/20 p-3 rounded-xl border border-natural-border/20 text-[10px] text-natural-ink italic leading-relaxed min-h-[60px] flex items-center justify-center text-center">
-                            {settings.greetingMessage.replace('[Name]', guest.name)}
+                            {(settings.greetingMessage || '').replace('[Name]', guest.name)}
                           </div>
                           {guest.phone && (
                             <a
@@ -143,7 +143,7 @@ export default function Invite() {
                               ? "bg-emerald-50 border-emerald-100 text-emerald-900 font-serif"
                               : "bg-natural-sidebar/20 border-natural-border/20 text-natural-ink italic"
                           )}>
-                            {personalizedMessages[guest.id] || settings.whatsappTemplate.replace('[Name]', guest.name).replace('[Date]', settings.weddingDate).replace('[Venue]', settings.venue)}
+                            {personalizedMessages[guest.id] || (settings.whatsappTemplate || '').replace('[Name]', guest.name).replace('[Date]', settings.weddingDate).replace('[Venue]', settings.venue)}
                           </div>
                           {guest.phone && (
                             <a

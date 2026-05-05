@@ -174,7 +174,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     const unsubSettings = onSnapshot(settingsRef, 
       (docSnap) => {
         if (docSnap.exists()) {
-          setSettings(docSnap.data() as WeddingSettings);
+          setSettings({ ...defaultSettings, ...docSnap.data() } as WeddingSettings);
         } else {
           setDoc(settingsRef, { ...defaultSettings, ownerId: user.uid })
             .catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/settings/info`));
