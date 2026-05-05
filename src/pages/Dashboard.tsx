@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus } from '../types';
-import { CheckCircle2, Send, HelpCircle, Users } from 'lucide-react';
+import { CheckCircle2, Send, HelpCircle, Users, UserPlus, Tags, Settings as SettingsIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   BarChart, 
@@ -14,7 +14,9 @@ import {
   Cell
 } from 'recharts';
 
-export function Dashboard() {
+import { View } from '../types';
+
+export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void }) {
   const { guests, categories, settings, updateGuest } = useGuests();
 
   const totalGuests = guests.length;
@@ -26,6 +28,14 @@ export function Dashboard() {
     .filter(g => g.status === InvitationStatus.NOT_INVITED)
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 5);
+
+  const weddingDate = new Date(settings.weddingDate);
+  const today = new Date();
+  const diffTime = weddingDate.getTime() - today.getTime();
+  const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const confirmationRate = totalGuests > 0 ? Math.round((confirmedCount / totalGuests) * 100) : 0;
+  const invitationRate = totalGuests > 0 ? Math.round((invitedCount / totalGuests) * 100) : 0;
 
   const stats = [
     { label: 'Total Guests', value: totalGuests, icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-50' },
@@ -48,11 +58,62 @@ export function Dashboard() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
-      <header className="pt-4 border-b border-natural-border/50 pb-8">
-        <h2 className="text-3xl font-serif font-bold text-natural-ink">
-          {settings.brideName} & {settings.groomName}'s Celebration
-        </h2>
-        <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Reflecting on your journey together</p>
+      <header className="pt-4 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h2 className="text-3xl font-serif font-bold text-natural-ink">
+              {settings.brideName} & {settings.groomName}'s Celebration
+            </h2>
+            <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Reflecting on your journey together</p>
+          </div>
+          <div className="bg-natural-olive/10 border border-natural-olive/20 rounded-2xl p-4 flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[10px] uppercase font-bold text-natural-olive tracking-widest leading-none">Wedding Day</p>
+              <p className="text-sm font-serif font-bold text-natural-ink mt-1">{new Date(settings.weddingDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+            <div className="h-10 w-[1px] bg-natural-olive/20" />
+            <div className="flex flex-col items-center">
+              <span className="text-2xl font-serif font-bold text-natural-olive leading-none">{daysRemaining > 0 ? daysRemaining : 0}</span>
+              <span className="text-[8px] uppercase font-bold text-natural-olive/60 tracking-tighter">Days Left</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Summary Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm space-y-4">
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-[9px] font-bold text-natural-muted uppercase tracking-widest">Invitation Sent</p>
+                <h4 className="text-xl font-serif font-bold text-natural-ink mt-1">{invitedCount} / {totalGuests}</h4>
+              </div>
+              <span className="text-xs font-bold text-natural-olive bg-natural-sidebar px-2 py-1 rounded-lg">{invitationRate}%</span>
+            </div>
+            <div className="h-2 bg-natural-sidebar rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${invitationRate}%` }}
+                className="h-full bg-natural-olive/40"
+              />
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm space-y-4">
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-[9px] font-bold text-natural-muted uppercase tracking-widest">Confirmed RSVPs</p>
+                <h4 className="text-xl font-serif font-bold text-natural-ink mt-1">{confirmedCount} / {totalGuests}</h4>
+              </div>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{confirmationRate}%</span>
+            </div>
+            <div className="h-2 bg-natural-sidebar rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${confirmationRate}%` }}
+                className="h-full bg-emerald-500/40"
+              />
+            </div>
+          </div>
+        </div>
       </header>
 
       {/* Stats Grid */}
@@ -60,7 +121,8 @@ export function Dashboard() {
         {stats.map((stat) => (
           <motion.div
             key={stat.label}
-            className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm hover:border-natural-olive transition-all"
+            whileHover={{ y: -5 }}
+            className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm hover:border-natural-olive transition-all cursor-default"
           >
             <div className={`p-2 rounded-lg w-fit ${stat.bgColor} ${stat.color} mb-4`}>
               <stat.icon className="w-5 h-5" />
@@ -69,6 +131,46 @@ export function Dashboard() {
             <h3 className="text-3xl font-serif font-bold text-natural-ink mt-1">{stat.value}</h3>
           </motion.div>
         ))}
+      </section>
+
+      {/* Quick Actions */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <button 
+          onClick={() => onViewChange('add')}
+          className="flex items-center gap-3 p-4 bg-natural-olive text-white rounded-2xl hover:bg-natural-ink transition-all shadow-sm hover:shadow-md group"
+        >
+          <div className="bg-white/20 p-2 rounded-xl group-hover:scale-110 transition-transform">
+            <UserPlus className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Add Guest</span>
+        </button>
+        <button 
+          onClick={() => onViewChange('guests')}
+          className="flex items-center gap-3 p-4 bg-white border border-natural-border text-natural-olive rounded-2xl hover:border-natural-olive transition-all shadow-sm group"
+        >
+          <div className="bg-natural-sidebar p-2 rounded-xl group-hover:scale-110 transition-transform">
+            <Users className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">View All</span>
+        </button>
+        <button 
+          onClick={() => onViewChange('categories')}
+          className="flex items-center gap-3 p-4 bg-white border border-natural-border text-natural-olive rounded-2xl hover:border-natural-olive transition-all shadow-sm group"
+        >
+          <div className="bg-natural-sidebar p-2 rounded-xl group-hover:scale-110 transition-transform">
+            <Tags className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">Categories</span>
+        </button>
+        <button 
+          onClick={() => onViewChange('settings')}
+          className="flex items-center gap-3 p-4 bg-white border border-natural-border text-natural-olive rounded-2xl hover:border-natural-olive transition-all shadow-sm group"
+        >
+          <div className="bg-natural-sidebar p-2 rounded-xl group-hover:scale-110 transition-transform">
+            <SettingsIcon className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">Settings</span>
+        </button>
       </section>
 
       {/* Quick Action: Pending Invitations */}

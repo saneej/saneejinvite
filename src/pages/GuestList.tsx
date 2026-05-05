@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
-import { InvitationStatus, Guest } from '../types';
-import { Search, Edit2, Trash2, X, Users, ChevronDown, Check } from 'lucide-react';
+import { InvitationStatus, Guest, View } from '../types';
+import { Search, Edit2, Trash2, X, Users, ChevronDown, Check, PlusCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
-export function GuestList() {
+export function GuestList({ onViewChange }: { onViewChange: (view: View) => void }) {
   const { guests, categories, deleteGuest, updateGuest, settings } = useGuests();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
@@ -94,11 +94,19 @@ export function GuestList() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted transition-colors group-focus-within:text-natural-olive" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search guests..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-natural-border px-10 py-2.5 rounded-xl text-xs outline-none focus:border-natural-olive transition-all"
+              className="w-full bg-white border border-natural-border px-10 py-2.5 rounded-xl text-xs outline-none focus:border-natural-olive transition-all h-11"
             />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-natural-muted hover:text-natural-olive transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
           
           <div className="flex gap-2">
@@ -127,16 +135,33 @@ export function GuestList() {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="h-96 flex flex-col items-center justify-center text-natural-muted gap-6 glass-card border-dashed border-2 m-4"
+          className="h-96 flex flex-col items-center justify-center text-natural-muted gap-6 bg-white rounded-[2rem] border-dashed border-2 border-natural-border m-4 p-8 text-center"
         >
           <div className="w-20 h-20 bg-natural-sidebar rounded-full flex items-center justify-center">
             <Users className="w-8 h-8 opacity-20" />
           </div>
-          <p className="font-serif italic text-xl">
-            {searchTerm || filterCategory !== 'All' || filterStatus !== 'All' 
-              ? 'Hmm, no one matches those criteria.' 
-              : 'The list is empty. Time to start inviting!'}
-          </p>
+          <div className="max-w-xs space-y-2">
+            <p className="font-serif italic text-xl text-natural-ink">
+              {searchTerm || filterCategory !== 'All' || filterStatus !== 'All' 
+                ? 'Hmm, no one matches those criteria.' 
+                : 'Your guest list is currently empty.'}
+            </p>
+            <p className="text-[10px] uppercase tracking-widest leading-relaxed">
+              {searchTerm || filterCategory !== 'All' || filterStatus !== 'All'
+                ? 'Try adjusting your filters or search terms.'
+                : 'Start by adding your first guest to begin your journey.'}
+            </p>
+          </div>
+          
+          {!(searchTerm || filterCategory !== 'All' || filterStatus !== 'All') && (
+            <button 
+              onClick={() => onViewChange('add')}
+              className="flex items-center gap-2 bg-natural-olive text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-natural-ink transition-colors shadow-lg"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Add First Guest
+            </button>
+          )}
         </motion.div>
       ) : (
         <div className="space-y-3 relative">

@@ -56,12 +56,12 @@ function AppContent() {
 
   const renderView = () => {
     switch (activeView) {
-      case 'dashboard': return <Dashboard />;
-      case 'guests': return <GuestList />;
-      case 'add': return <AddGuest />;
+      case 'dashboard': return <Dashboard onViewChange={setActiveView} />;
+      case 'guests': return <GuestList onViewChange={setActiveView} />;
+      case 'add': return <AddGuest onViewChange={setActiveView} />;
       case 'categories': return <Categories />;
       case 'settings': return <Settings />;
-      default: return <Dashboard />;
+      default: return <Dashboard onViewChange={setActiveView} />;
     }
   };
 
