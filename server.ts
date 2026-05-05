@@ -370,10 +370,11 @@ async function startServer() {
       }
 
       const protocol = "https"; 
-      const host = req.headers["host"];
-      const webhookUrl = `${protocol}://${host}/api/telegram-webhook?ownerId=${ownerId}`;
+      const rawHost = (req.headers["x-forwarded-host"] as string) || (req.headers["host"] as string);
+      const domain = rawHost.split(":")[0];
+      const webhookUrl = `${protocol}://${domain}/api/telegram-webhook?ownerId=${ownerId}`;
 
-      logToFile(`>>> Webhook Setup: forcing HTTPS. URL: ${webhookUrl}`);
+      logToFile(`>>> Webhook Setup: using domain ${domain}. Final URL: ${webhookUrl}`);
       logToFile(`>>> Activating webhook for token: ${token.substring(0, 5)}...`);
       const telRes = await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
       const result = await telRes.json();

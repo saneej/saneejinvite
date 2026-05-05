@@ -30,6 +30,7 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
   
   const [showWarning, setShowWarning] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isWarningDismissed, setIsWarningDismissed] = useState(false);
 
   const recentlyAdded = guests.slice(-5).reverse();
 
@@ -129,6 +130,7 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
     setPhone('');
     setNotes('');
     setShowWarning(false);
+    setIsWarningDismissed(false);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
   };
@@ -369,21 +371,33 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
               required
               placeholder="Full Name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (e.target.value === '') setIsWarningDismissed(false);
+              }}
               className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
             />
             <AnimatePresence>
-              {similarGuests.length > 0 && (
+              {similarGuests.length > 0 && !isWarningDismissed && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   className="absolute z-10 left-0 right-0 top-full mt-1 bg-white border border-natural-border shadow-xl rounded-xl p-4 space-y-3"
                 >
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-natural-olive flex items-center gap-1.5">
-                    <AlertCircle className="w-3 h-3" />
-                    Wait, is this person already listed?
-                  </p>
+                  <div className="flex justify-between items-start">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-natural-olive flex items-center gap-1.5">
+                      <AlertCircle className="w-3 h-3" />
+                      Wait, is this person already listed?
+                    </p>
+                    <button 
+                      type="button"
+                      onClick={() => setIsWarningDismissed(true)}
+                      className="p-1 hover:bg-natural-sidebar rounded-full transition-colors"
+                    >
+                      <X className="w-3 h-3 text-natural-muted" />
+                    </button>
+                  </div>
                   <div className="space-y-2">
                     {similarGuests.map(g => (
                       <div key={g.id} className="flex items-center justify-between bg-natural-sidebar/30 p-2.5 rounded-lg text-xs">
