@@ -37,11 +37,13 @@ async function startServer() {
     console.log(">>> Reading config from:", configPath);
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
+    logToFile(`>>> ENV check: PROJECT_ID=${process.env.GOOGLE_CLOUD_PROJECT}, ADC=${process.env.GOOGLE_APPLICATION_CREDENTIALS}`);
     logToFile(`>>> Initializing Firebase Admin for project: ${firebaseConfig.projectId}`);
+    
     if (getApps().length === 0) {
-      initializeApp({
-        projectId: firebaseConfig.projectId
-      });
+      logToFile(">>> Manually setting GOOGLE_CLOUD_PROJECT and initializing...");
+      process.env.GOOGLE_CLOUD_PROJECT = firebaseConfig.projectId;
+      initializeApp();
     }
 
     db = firebaseConfig.firestoreDatabaseId 
@@ -75,33 +77,211 @@ async function startServer() {
     }
   }
 
+  const TOKEN_CACHE = path.join(process.cwd(), "bot_tokens.json");
+  function cacheToken(ownerId: string, token: string) {
+    try {
+      let cache: Record<string, string> = {};
+      if (fs.existsSync(TOKEN_CACHE)) {
+        cache = JSON.parse(fs.readFileSync(TOKEN_CACHE, "utf-8"));
+      }
+      cache[ownerId] = token;
+      fs.writeFileSync(TOKEN_CACHE, JSON.stringify(cache, null, 2));
+      logToFile(`>>> Cached bot token for owner: ${ownerId}`);
+    } catch (e) {
+      logToFile(`!!! Failed to cache token: ${e}`);
+    }
+  }
+
+  function getCachedToken(ownerId: string): string | null {
+    try {
+      if (fs.existsSync(TOKEN_CACHE)) {
+        const cache = JSON.parse(fs.readFileSync(TOKEN_CACHE, "utf-8"));
+        return cache[ownerId] || null;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  async function getMetadataToken() {
+    try {
+      logToFile(">>> Fetching Metadata token...");
+      const res = await fetch("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", {
+        headers: { "Metadata-Flavor": "Google" }
+      });
+      if (!res.ok) {
+        logToFile(`!!! Metadata token fetch failed: ${res.status}`);
+        return null;
+      }
+      const data = await res.json();
+      return data.access_token;
+    } catch (e) {
+      logToFile(`!!! Metadata token error: ${e}`);
+      return null;
+    }
+  }
+
+  async function getBotToken(ownerId: string, userToken?: string | null): Promise<string | null> {
+    // 1. Try Cache
+    let token = getCachedToken(ownerId);
+    if (token) return token;
+
+    // 2. Try Admin SDK
+    if (db) {
+      try {
+        const snap = await db.collection("users").doc(ownerId).collection("settings").doc("info").get();
+        token = snap.data()?.telegramBotToken;
+        if (token) {
+          cacheToken(ownerId, token);
+          return token;
+        }
+      } catch (err) {
+        logToFile(`>>> Admin SDK getBotToken failed: ${err}`);
+      }
+    }
+
+    // 3. Try REST API with User Token or Metadata Token
+    const authHeaderToken = userToken || await getMetadataToken();
+    if (authHeaderToken) {
+      try {
+        const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+        const projId = firebaseConfig.projectId;
+        const url = `https://firestore.googleapis.com/v1/projects/${projId}/databases/${dbId}/documents/users/${ownerId}/settings/info`;
+        
+        const res = await fetch(url, {
+          headers: { "Authorization": `Bearer ${authHeaderToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          token = data.fields?.telegramBotToken?.stringValue;
+          if (token) {
+            cacheToken(ownerId, token);
+            return token;
+          }
+        } else {
+          logToFile(`>>> REST getBotToken failed: ${res.status} ${await res.text()}`);
+        }
+      } catch (e) {
+        logToFile(`>>> REST getBotToken error: ${e}`);
+      }
+    }
+
+    return null;
+  }
+
+  async function firestoreAddGuest(ownerId: string, name: string, category: string) {
+    const guestData = {
+      name,
+      category,
+      status: "Not Invited",
+      notes: "Added via Telegram",
+      ownerId,
+      createdAt: new Date().toISOString() // Simpler for REST compatibility
+    };
+
+    if (db) {
+      try {
+        await db.collection("users").doc(ownerId).collection("guests").add({
+          ...guestData,
+          createdAt: FieldValue.serverTimestamp()
+        });
+        logToFile(`>>> Added guest via Admin SDK: ${name}`);
+        return true;
+      } catch (err) {
+        logToFile(`>>> Admin SDK guest add failed: ${err}`);
+      }
+    }
+
+    const token = await getMetadataToken();
+    if (token) {
+      try {
+        const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+        const projId = firebaseConfig.projectId;
+        const url = `https://firestore.googleapis.com/v1/projects/${projId}/databases/${dbId}/documents/users/${ownerId}/guests`;
+        
+        const fields: any = {
+          name: { stringValue: name },
+          category: { stringValue: category },
+          status: { stringValue: "Not Invited" },
+          notes: { stringValue: "Added via Telegram" },
+          ownerId: { stringValue: ownerId },
+          createdAt: { timestampValue: new Date().toISOString() }
+        };
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ fields })
+        });
+
+        if (res.ok) {
+          logToFile(`>>> Added guest via REST API: ${name}`);
+          return true;
+        } else {
+          logToFile(`!!! REST guest add failed: ${res.status} ${await res.text()}`);
+        }
+      } catch (e) {
+        logToFile(`!!! REST guest add error: ${e}`);
+      }
+    }
+    return false;
+  }
+
+  async function firestoreGetCategories(ownerId: string) {
+    if (db) {
+      try {
+        const snap = await db.collection("users").doc(ownerId).collection("categories").get();
+        if (!snap.empty) {
+          return snap.docs.map((d: any) => d.data().name);
+        }
+      } catch (e) {
+        logToFile(`>>> Admin SDK getCategories failed: ${e}`);
+      }
+    }
+
+    const token = await getMetadataToken();
+    if (token) {
+      try {
+        const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+        const projId = firebaseConfig.projectId;
+        const url = `https://firestore.googleapis.com/v1/projects/${projId}/databases/${dbId}/documents/users/${ownerId}/categories`;
+        
+        const res = await fetch(url, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.documents) {
+             return data.documents.map((d: any) => d.fields.name.stringValue);
+          }
+        }
+      } catch (e) {
+        logToFile(`!!! REST getCategories failed: ${e}`);
+      }
+    }
+    return ["Family", "Friends", "Groom Side", "Bride Side"];
+  }
+
   // Telegram Webhook
   app.post("/api/telegram-webhook", async (req, res) => {
-    logToFile(`>>> Webhook hit from ${req.ip}. Query: ${JSON.stringify(req.query)}`);
-    if (!db) {
-      logToFile("!!! DB not ready");
-      return res.status(500).send("DB not ready");
-    }
+    logToFile(`>>> Webhook hit. Query: ${JSON.stringify(req.query)}`);
+    const ownerId = req.query.ownerId as string;
+    if (!ownerId) return res.sendStatus(200);
 
     const { message, callback_query } = req.body;
-    const ownerId = req.query.ownerId as string;
     
-    if (!ownerId) {
-      logToFile("!!! Missing ownerId in query");
-      return res.sendStatus(200);
-    }
-
     try {
-      logToFile(`>>> Processing for owner: ${ownerId}`);
-      const settingsSnap = await db.collection("users").doc(ownerId).collection("settings").doc("info").get();
-      if (!settingsSnap.exists) {
-        logToFile(`!!! Settings not found at /users/${ownerId}/settings/info`);
-      }
-      const settingsData = settingsSnap.data();
-      const botToken = settingsData?.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
-
+      const botToken = await getBotToken(ownerId);
       if (!botToken) {
-        logToFile("!!! No bot token");
+        logToFile(`!!! Failed to retrieve bot token for ${ownerId}`);
         return res.sendStatus(200);
       }
 
@@ -112,21 +292,21 @@ async function startServer() {
 
         if (guestName && data.startsWith("cat:")) {
           const category = data.split(":")[1];
-          logToFile(`>>> Adding guest: ${guestName} to category: ${category} (User: ${ownerId})`);
+          logToFile(`>>> Processing guest addition: ${guestName} to ${category}`);
           
-          await db.collection("users").doc(ownerId).collection("guests").add({
-            name: guestName,
-            category: category,
-            status: "Not Invited",
-            createdAt: FieldValue.serverTimestamp(),
-            notes: "Added via Telegram",
-            ownerId: ownerId
-          });
+          const success = await firestoreAddGuest(ownerId, guestName, category);
 
-          await sendTelegram(botToken, "sendMessage", {
-            chat_id: chatId,
-            text: `✅ Guest "${guestName}" added to "${category}"!`,
-          });
+          if (success) {
+            await sendTelegram(botToken, "sendMessage", {
+              chat_id: chatId,
+              text: `✅ Guest "${guestName}" added to "${category}"!`,
+            });
+          } else {
+            await sendTelegram(botToken, "sendMessage", {
+              chat_id: chatId,
+              text: `❌ Failed to save guest. Please check your app settings.`,
+            });
+          }
           
           pendingGuests.delete(chatId);
         }
@@ -147,12 +327,7 @@ async function startServer() {
         }
 
         pendingGuests.set(chatId, text);
-
-        let categories = ["Family", "Friends", "Groom Side", "Bride Side"];
-        const catsSnap = await db.collection("users").doc(ownerId).collection("categories").get();
-        if (!catsSnap.empty) {
-          categories = catsSnap.docs.map((d: any) => d.data().name);
-        }
+        const categories = await firestoreGetCategories(ownerId);
 
         await sendTelegram(botToken, "sendMessage", {
           chat_id: chatId,
@@ -180,37 +355,33 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
-  // Manual Trigger to Setup Bot Webhook
   app.post("/api/setup-bot", async (req, res) => {
     const { ownerId } = req.body;
-    if (!ownerId || !db) {
-      logToFile("!!! Identity or DB missing in setup-bot");
-      return res.status(400).json({ error: "Missing identity or DB not ready" });
-    }
+    const authHeader = req.headers.authorization;
+    const idToken = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
+    logToFile(`>>> Setup-bot trigger for ${ownerId}. Token present: ${!!idToken}`);
+    if (!ownerId) return res.status(400).json({ error: "Missing ownerId" });
 
     try {
-      const snap = await db.collection("users").doc(ownerId).collection("settings").doc("info").get();
-      const token = snap.data()?.telegramBotToken;
-
+      const token = await getBotToken(ownerId, idToken);
       if (!token) {
-        logToFile(`!!! Setup failed: No Bot Token found for ${ownerId}`);
-        return res.status(400).json({ error: "No Bot Token saved. Please save it first." });
+        return res.status(400).json({ error: "Could not retrieve Bot Token. Save changes first." });
       }
 
-      const protocol = req.headers["x-forwarded-proto"] || "http";
+      const protocol = "https"; 
       const host = req.headers["host"];
       const webhookUrl = `${protocol}://${host}/api/telegram-webhook?ownerId=${ownerId}`;
 
-      logToFile(`>>> FORCING WEBHOOK SETUP for ${ownerId}`);
-      logToFile(`>>> TARGET URL: ${webhookUrl}`);
-
+      logToFile(`>>> Webhook Setup: forcing HTTPS. URL: ${webhookUrl}`);
+      logToFile(`>>> Activating webhook for token: ${token.substring(0, 5)}...`);
       const telRes = await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
       const result = await telRes.json();
 
       logToFile(`>>> Telegram Setup Result: ${JSON.stringify(result)}`);
       res.json({ success: true, result });
     } catch (err) {
-      logToFile(`!!! Setup-bot endpoint error: ${err}`);
+      logToFile(`!!! Setup-bot final error: ${err}`);
       res.status(500).json({ error: String(err) });
     }
   });

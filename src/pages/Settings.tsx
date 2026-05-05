@@ -221,9 +221,13 @@ export function Settings() {
                     type="button"
                     onClick={async () => {
                       try {
+                        const idToken = await auth.currentUser?.getIdToken();
                         const res = await fetch('/api/setup-bot', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
+                          headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${idToken}`
+                          },
                           body: JSON.stringify({ ownerId: auth.currentUser?.uid })
                         });
                         const data = await res.json();
@@ -240,7 +244,21 @@ export function Settings() {
                   >
                     Activate Webhook Now
                   </button>
-                  {!settings.telegramBotToken && <p className="text-[9px] text-blue-600 mt-2 font-medium">Note: You must click "Save All Changes" for the bot to start responding.</p>}
+                  {!settings.telegramBotToken && (
+                    <p className="text-[9px] text-blue-600 mt-2 font-medium">
+                      Note: You must click "Save All Changes" for the bot to start responding.
+                    </p>
+                  )}
+                  <div className="mt-4 pt-4 border-t border-natural-border/30">
+                    <a 
+                      href="/api/logs" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-[9px] text-natural-muted hover:text-natural-ink underline flex items-center gap-1"
+                    >
+                      View Server Debug Logs (Check for Linking Status)
+                    </a>
+                  </div>
                 </div>
               )}
 
