@@ -28,6 +28,8 @@ export interface WeddingSettings {
   whatsappTemplate: string;
   greetingMessage: string;
   invitationTone: string;
+  telegramBotToken?: string;
+  telegramEnabled: boolean;
 }
 
 export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite';

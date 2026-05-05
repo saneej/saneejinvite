@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
-import { Download, FileJson, FileSpreadsheet } from 'lucide-react';
+import { Download, FileJson, FileSpreadsheet, Bot, Info, Copy, Check } from 'lucide-react';
 import { motion } from 'motion/react';
+import { auth } from '../lib/firebase';
+import { cn } from '../lib/utils';
 
 export function Settings() {
   const { settings, updateSettings, guests } = useGuests();
   const [formData, setFormData] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const webhookUrl = `${window.location.origin}/api/telegram-webhook?ownerId=${auth.currentUser?.uid || ''}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,6 +160,89 @@ export function Settings() {
               {isSaved ? 'Settings Saved' : 'Save Profile Changes'}
             </button>
           </motion.form>
+
+          {/* Telegram Bot Integration */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm space-y-6"
+          >
+            <div className="flex items-center gap-3 border-b border-natural-border pb-4">
+              <div className="bg-blue-50 p-2 rounded-xl">
+                <Bot className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-serif font-bold text-natural-ink">Telegram Bot Integration</h3>
+                <p className="text-[9px] text-natural-muted uppercase font-bold tracking-widest">Add guests via Telegram</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex gap-3">
+                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-[11px] text-blue-900 leading-relaxed">
+                    Create a bot using <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="font-bold underline">@BotFather</a> on Telegram. 
+                    Set the <strong>Webhook URL</strong> below in your bot settings.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Bot Token</label>
+                <input 
+                  type="password" 
+                  value={formData.telegramBotToken || ''} 
+                  onChange={(e) => setFormData({...formData, telegramBotToken: e.target.value})}
+                  placeholder="Paste your bot token here"
+                  className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none focus:border-natural-olive transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Your Webhook URL</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={webhookUrl}
+                    className="flex-1 bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-[10px] font-mono outline-none"
+                  />
+                  <button 
+                    onClick={copyToClipboard}
+                    className="px-4 bg-natural-sidebar border border-natural-border/50 rounded-xl hover:bg-natural-border/20 transition-all"
+                  >
+                    {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-natural-muted" />}
+                  </button>
+                </div>
+                <p className="text-[9px] text-natural-muted italic">Note: Make sure to set TELEGRAM_BOT_TOKEN in your app's secrets.</p>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-natural-sidebar/20 rounded-xl border border-natural-border/30">
+                <div>
+                  <p className="text-xs font-bold text-natural-ink">Enable Telegram Integration</p>
+                  <p className="text-[9px] text-natural-muted uppercase tracking-wider">Allow bot to add guests</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newSettings = { ...formData, telegramEnabled: !formData.telegramEnabled };
+                    setFormData(newSettings);
+                    updateSettings(newSettings);
+                  }}
+                  className={cn(
+                    "w-12 h-6 rounded-full p-1 transition-all",
+                    formData.telegramEnabled ? "bg-natural-olive" : "bg-natural-border"
+                  )}
+                >
+                  <div className={cn(
+                    "w-4 h-4 bg-white rounded-full transition-all shadow-sm",
+                    formData.telegramEnabled ? "translate-x-6" : "translate-x-0"
+                  )} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         <div className="space-y-6">

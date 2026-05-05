@@ -35,23 +35,10 @@ export default function Invite() {
     }
   };
 
-  const getWhatsAppLink = (guest: Guest, type: 'greeting' | 'invitation' | 'ai') => {
+  const getWhatsAppLink = (guest: Guest) => {
     if (!guest.phone) return '#';
-    let template = '';
-    
-    if (type === 'greeting') template = settings.greetingMessage;
-    else if (type === 'invitation') template = settings.whatsappTemplate;
-    else if (type === 'ai') template = personalizedMessages[guest.id] || '';
-    
-    if (!template) return '#';
-
-    const message = template
-      .replace('[Name]', guest.name)
-      .replace('[Date]', settings.weddingDate || '')
-      .replace('[Venue]', settings.venue || '');
-    
     const cleanPhone = guest.phone.replace(/\D/g, '');
-    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    return `https://wa.me/${cleanPhone}`;
   };
 
   return (
@@ -123,13 +110,13 @@ export default function Invite() {
                           </div>
                           {guest.phone && (
                             <a
-                              href={getWhatsAppLink(guest, 'greeting')}
+                              href={getWhatsAppLink(guest)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="w-full flex items-center justify-center gap-2 py-2 bg-white border border-natural-border/50 text-[9px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive hover:text-white transition-all rounded-lg"
                             >
                               <Send className="w-3 h-3" />
-                              Send Greeting
+                              Open WhatsApp Greeting
                             </a>
                           )}
                         </div>
@@ -147,14 +134,14 @@ export default function Invite() {
                           </div>
                           {guest.phone && (
                             <a
-                              href={getWhatsAppLink(guest, personalizedMessages[guest.id] ? 'ai' : 'invitation')}
+                              href={getWhatsAppLink(guest)}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={() => updateGuest(guest.id, { status: InvitationStatus.INVITED })}
                               className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all rounded-lg shadow-sm"
                             >
                               <MessageCircle className="w-3 h-3" />
-                              Send {personalizedMessages[guest.id] ? 'AI' : 'Standard'} Invite
+                              Open WhatsApp Invite
                             </a>
                           )}
                         </div>
