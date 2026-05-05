@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
-import { Tags, Plus, Pencil, Trash2, Check, X, Heart } from 'lucide-react';
+import { Tags, Pencil, Trash2, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function Categories() {

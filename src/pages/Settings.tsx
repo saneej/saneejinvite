@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
-import { Save, Download, FileJson, FileSpreadsheet, Heart, Sparkles } from 'lucide-react';
+import { Download, FileJson, FileSpreadsheet } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export function Settings() {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus, Guest } from '../types';
-import { Search, Edit2, Trash2, X, Users } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Users, ChevronDown, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -11,6 +11,8 @@ export function GuestList() {
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showBulkMenu, setShowBulkMenu] = useState(false);
 
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -19,6 +21,35 @@ export function GuestList() {
     const matchesStatus = filterStatus === 'All' || guest.status === filterStatus;
     return matchesSearch && matchesCategory && matchesStatus;
   });
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredGuests.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredGuests.map(g => g.id));
+    }
+  };
+
+  const handleBulkStatusUpdate = (status: InvitationStatus) => {
+    selectedIds.forEach(id => {
+      updateGuest(id, { status });
+    });
+    setSelectedIds([]);
+    setShowBulkMenu(false);
+  };
+
+  const handleBulkDelete = () => {
+    if (confirm(`Remove ${selectedIds.length} selected guests?`)) {
+      selectedIds.forEach(id => deleteGuest(id));
+      setSelectedIds([]);
+    }
+  };
 
   const getWhatsAppLink = (guest: Guest) => {
     if (!guest.phone) return null;
@@ -51,6 +82,14 @@ export function GuestList() {
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3">
+          {filteredGuests.length > 0 && (
+            <button
+              onClick={toggleSelectAll}
+              className="px-4 py-2 bg-natural-sidebar/50 rounded-xl border border-natural-border/30 text-[10px] font-bold text-natural-olive uppercase tracking-widest hover:bg-natural-sidebar transition-colors"
+            >
+              {selectedIds.length === filteredGuests.length ? 'Deselect All' : 'Select All'}
+            </button>
+          )}
           <div className="relative group md:w-64">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted transition-colors group-focus-within:text-natural-olive" />
             <input
@@ -66,18 +105,18 @@ export function GuestList() {
             <select 
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-olive uppercase tracking-widest outline-none cursor-pointer min-w-[140px]"
+              className="bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-olive uppercase tracking-widest outline-none cursor-pointer min-w-[120px]"
             >
-              <option value="All">All Categories</option>
+              <option value="All">Categories</option>
               {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
             </select>
 
             <select 
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-muted uppercase tracking-widest outline-none cursor-pointer min-w-[140px]"
+              className="bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-muted uppercase tracking-widest outline-none cursor-pointer min-w-[120px]"
             >
-              <option value="All">All Statuses</option>
+              <option value="All">Statuses</option>
               {Object.values(InvitationStatus).map(status => <option key={status} value={status}>{status}</option>)}
             </select>
           </div>
@@ -100,7 +139,7 @@ export function GuestList() {
           </p>
         </motion.div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 relative">
           <AnimatePresence mode="popLayout">
             {filteredGuests.map((guest) => (
               <motion.div
@@ -108,15 +147,15 @@ export function GuestList() {
                 key={guest.id}
                 className="group"
               >
-                <div className="bg-white p-4 rounded-xl border border-natural-border/30 hover:border-natural-olive/20 transition-all flex items-center gap-4">
+                <div className={cn(
+                  "p-4 rounded-xl border transition-all flex items-center gap-4 bg-white",
+                  selectedIds.includes(guest.id) ? "border-natural-olive ring-1 ring-natural-olive/20" : "border-natural-border/30 hover:border-natural-olive/20"
+                )}>
                   <input 
                     type="checkbox" 
                     className="w-4 h-4 rounded border-natural-border text-natural-olive focus:ring-0 cursor-pointer flex-shrink-0"
-                    checked={guest.status !== InvitationStatus.NOT_INVITED}
-                    onChange={(e) => {
-                      const newStatus = e.target.checked ? InvitationStatus.INVITED : InvitationStatus.NOT_INVITED;
-                      updateGuest(guest.id, { status: newStatus });
-                    }}
+                    checked={selectedIds.includes(guest.id)}
+                    onChange={() => toggleSelection(guest.id)}
                   />
                   
                   <div className="flex-1 min-w-0">
@@ -129,7 +168,7 @@ export function GuestList() {
                     <p className="text-[9px] uppercase tracking-wider text-natural-muted font-medium">{guest.category}</p>
                   </div>
 
-                  <div className="hidden sm:block text-[11px] text-natural-muted font-light truncate max-w-[150px]">
+                  <div className="hidden md:block text-[11px] text-natural-muted font-light truncate max-w-[150px]">
                     {guest.phone || (guest.notes && `"${guest.notes.substring(0, 20)}..."`)}
                   </div>
 
@@ -139,6 +178,11 @@ export function GuestList() {
                         href={getWhatsAppLink(guest) || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => {
+                          if (guest.status === InvitationStatus.NOT_INVITED) {
+                            updateGuest(guest.id, { status: InvitationStatus.INVITED });
+                          }
+                        }}
                         className="bg-natural-sidebar text-natural-olive px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-natural-olive hover:text-white transition-all flex items-center gap-1.5"
                       >
                         Invite
@@ -153,10 +197,10 @@ export function GuestList() {
                     </button>
                     
                     <div className="relative group/more sm:hidden">
-                       <button className="p-1.5 text-natural-muted"><X className="w-3.5 h-3.5 rotate-45" /></button>
-                       <div className="absolute right-0 bottom-full mb-2 bg-white border border-natural-border rounded-lg shadow-xl hidden group-hover/more:block p-1">
-                          <button onClick={() => setEditingGuest(guest)} className="p-2 text-natural-muted hover:text-natural-olive flex items-center gap-2 text-[10px] uppercase font-bold"><Edit2 className="w-3 h-3" /> Edit</button>
-                          <button onClick={() => { if (confirm(`Remove ${guest.name}?`)) deleteGuest(guest.id); }} className="p-2 text-rose-500 hover:bg-rose-50 flex items-center gap-2 text-[10px] uppercase font-bold"><Trash2 className="w-3 h-3" /> Delete</button>
+                       <button className="p-1.5 text-natural-muted uppercase text-[9px] font-bold tracking-widest">More</button>
+                       <div className="absolute right-0 bottom-full mb-2 bg-white border border-natural-border rounded-lg shadow-xl hidden group-hover/more:block p-1 min-w-[100px] z-10">
+                          <button onClick={() => setEditingGuest(guest)} className="w-full text-left p-2 text-natural-muted hover:text-natural-olive flex items-center gap-2 text-[10px] uppercase font-bold"><Edit2 className="w-3 h-3" /> Edit</button>
+                          <button onClick={() => { if (confirm(`Remove ${guest.name}?`)) deleteGuest(guest.id); }} className="w-full text-left p-2 text-rose-500 hover:bg-rose-50 flex items-center gap-2 text-[10px] uppercase font-bold"><Trash2 className="w-3 h-3" /> Delete</button>
                        </div>
                     </div>
 
@@ -175,6 +219,75 @@ export function GuestList() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Floating Bulk Action Bar */}
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-24 sm:bottom-8 left-1/2 -translate-x-1/2 z-[80] w-[calc(100%-2rem)] max-w-2xl"
+          >
+            <div className="bg-natural-ink text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10 backdrop-blur-lg">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setSelectedIds([])}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div>
+                  <p className="text-xs font-bold">{selectedIds.length} Selected</p>
+                  <p className="text-[9px] text-white/50 uppercase tracking-widest leading-none mt-0.5">Bulk Actions</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowBulkMenu(!showBulkMenu)}
+                    className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-colors"
+                  >
+                    Update Status
+                    <ChevronDown className={cn("w-3 h-3 transition-transform", showBulkMenu && "rotate-180")} />
+                  </button>
+
+                  <AnimatePresence>
+                    {showBulkMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: -10 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-xl shadow-2xl border border-natural-border overflow-hidden p-1"
+                      >
+                        {Object.values(InvitationStatus).map((status) => (
+                          <button
+                            key={status}
+                            onClick={() => handleBulkStatusUpdate(status)}
+                            className="w-full text-left px-3 py-2 text-[10px] uppercase tracking-widest font-bold text-natural-ink hover:bg-natural-sidebar rounded-lg transition-colors flex items-center justify-between group"
+                          >
+                            {status}
+                            <Check className="w-3 h-3 opacity-0 group-hover:opacity-100 text-natural-olive" />
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <button 
+                  onClick={handleBulkDelete}
+                  className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
+                  title="Delete Selected"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Modern Edit Modal */}
       <AnimatePresence>

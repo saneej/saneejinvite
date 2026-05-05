@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus } from '../types';
-import { CheckCircle2, Send, HelpCircle, Users, Heart, Sparkles } from 'lucide-react';
+import { CheckCircle2, Send, HelpCircle, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   BarChart, 
@@ -15,12 +15,17 @@ import {
 } from 'recharts';
 
 export function Dashboard() {
-  const { guests, categories, addGuest, settings } = useGuests();
+  const { guests, categories, settings, updateGuest } = useGuests();
 
   const totalGuests = guests.length;
   const invitedCount = guests.filter(g => g.status === InvitationStatus.INVITED || g.status === InvitationStatus.CONFIRMED).length;
   const confirmedCount = guests.filter(g => g.status === InvitationStatus.CONFIRMED).length;
   const notInvitedCount = guests.filter(g => g.status === InvitationStatus.NOT_INVITED).length;
+
+  const pendingGuests = guests
+    .filter(g => g.status === InvitationStatus.NOT_INVITED)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 5);
 
   const stats = [
     { label: 'Total Guests', value: totalGuests, icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-50' },
@@ -65,6 +70,35 @@ export function Dashboard() {
           </motion.div>
         ))}
       </section>
+
+      {/* Quick Action: Pending Invitations */}
+      {pendingGuests.length > 0 && (
+        <section className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h3 className="text-lg font-serif font-bold text-natural-ink">Quick Invite</h3>
+              <p className="text-[10px] text-natural-muted uppercase tracking-widest">Recently added, not yet invited</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {pendingGuests.map((guest) => (
+              <div key={guest.id} className="flex items-center justify-between p-3 rounded-xl bg-natural-sidebar/30 border border-natural-border/40">
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-natural-ink truncate">{guest.name}</h4>
+                  <p className="text-[9px] uppercase tracking-wider text-natural-muted font-medium">{guest.category}</p>
+                </div>
+                <button
+                  onClick={() => updateGuest(guest.id, { status: InvitationStatus.INVITED })}
+                  className="bg-natural-olive text-white px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-natural-ink transition-colors flex items-center gap-2"
+                >
+                  <Send className="w-3 h-3" />
+                  Mark Invited
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Analytics Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

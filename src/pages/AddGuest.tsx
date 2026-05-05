@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus } from '../types';
-import { UserPlus, AlertCircle, CheckCircle2, Heart } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function AddGuest() {
@@ -11,9 +11,30 @@ export function AddGuest() {
   const [category, setCategory] = useState(categories[0]?.name || '');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<InvitationStatus>(InvitationStatus.NOT_INVITED);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkText, setBulkText] = useState('');
   
   const [showWarning, setShowWarning] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleBulkSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const names = bulkText.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+    
+    names.forEach(n => {
+      addGuest({
+        name: n,
+        category,
+        status,
+        notes: '',
+        phone: ''
+      });
+    });
+
+    setBulkText('');
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
+  };
 
   const handleSubmit = (e: React.FormEvent, force = false) => {
     e.preventDefault();
@@ -46,17 +67,74 @@ export function AddGuest() {
 
   return (
     <div className="max-w-xl mx-auto space-y-10 pb-20">
-      <header className="pt-4 border-b border-natural-border/50 pb-8 px-4">
-        <h2 className="text-3xl font-serif font-bold text-natural-ink">Add Guest</h2>
-        <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Expanding your celebration</p>
+      <header className="pt-4 border-b border-natural-border/50 pb-8 px-4 flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-serif font-bold text-natural-ink">Add Guest</h2>
+          <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Expanding your celebration</p>
+        </div>
+        <button 
+          onClick={() => setBulkMode(!bulkMode)}
+          className="text-[10px] font-bold uppercase tracking-widest text-natural-olive border border-natural-olive/30 px-3 py-1.5 rounded-lg hover:bg-natural-olive hover:text-white transition-all"
+        >
+          {bulkMode ? 'Single Entry' : 'Bulk Paste'}
+        </button>
       </header>
 
-      <motion.form 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        onSubmit={handleSubmit} 
-        className="bg-white p-8 md:p-10 rounded-2xl border border-natural-border/60 shadow-sm space-y-8 mx-4"
-      >
+      {bulkMode ? (
+        <motion.form 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onSubmit={handleBulkSubmit}
+          className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm space-y-6 mx-4"
+        >
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Paste Names (One per line)</label>
+            <textarea
+              required
+              placeholder="John Doe&#10;Jane Smith&#10;The Johnson Family"
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-4 rounded-xl text-sm outline-none focus:border-natural-olive transition-all h-64 font-serif"
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+             <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Assign Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none appearance-none cursor-pointer"
+              >
+                {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Initial Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as InvitationStatus)}
+                className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none appearance-none cursor-pointer"
+              >
+                {Object.values(InvitationStatus).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-natural-olive text-white py-4 rounded-lg text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-natural-ink transition-colors"
+          >
+            Add All Guests
+          </button>
+        </motion.form>
+      ) : (
+        <motion.form 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onSubmit={handleSubmit} 
+          className="bg-white p-8 md:p-10 rounded-2xl border border-natural-border/60 shadow-sm space-y-8 mx-4"
+        >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Guest Name</label>
@@ -170,6 +248,7 @@ export function AddGuest() {
           )}
         </AnimatePresence>
       </motion.form>
+      )}
     </div>
   );
 }
