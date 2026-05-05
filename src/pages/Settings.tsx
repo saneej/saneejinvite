@@ -216,15 +216,30 @@ export function Settings() {
               </div>
 
               {formData.telegramBotToken && (
-                <div className="pt-2">
-                  <a 
-                    href={`https://api.telegram.org/bot${formData.telegramBotToken}/setWebhook?url=${encodeURIComponent(webhookUrl)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <div className="pt-2 space-y-3">
+                  <button 
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/setup-bot', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ ownerId: auth.currentUser?.uid })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          alert('✅ Bot linked successfully! Send /start to your bot on Telegram now.');
+                        } else {
+                          alert('❌ Link failed: ' + (data.result?.description || 'Unknown error'));
+                        }
+                      } catch (err) {
+                        alert('❌ Error connecting to server.');
+                      }
+                    }}
                     className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
                   >
                     Activate Webhook Now
-                  </a>
+                  </button>
                   {!settings.telegramBotToken && <p className="text-[9px] text-blue-600 mt-2 font-medium">Note: You must click "Save All Changes" for the bot to start responding.</p>}
                 </div>
               )}

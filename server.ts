@@ -12,6 +12,24 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  const LOG_FILE = path.join(process.cwd(), "server.log");
+  function logToFile(msg: string) {
+    const entry = `[${new Date().toISOString()}] ${msg}\n`;
+    try {
+      fs.appendFileSync(LOG_FILE, entry);
+    } catch (e) {}
+    console.log(msg);
+  }
+
+  app.get("/api/logs", (req, res) => {
+    if (fs.existsSync(LOG_FILE)) {
+      res.setHeader("Content-Type", "text/plain");
+      res.send(fs.readFileSync(LOG_FILE, "utf-8"));
+    } else {
+      res.send("No logs found.");
+    }
+  });
+
   let db: any = null;
 
   try {
@@ -19,18 +37,20 @@ async function startServer() {
     console.log(">>> Reading config from:", configPath);
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
+    logToFile(`>>> Initializing Firebase Admin for project: ${firebaseConfig.projectId}`);
     if (getApps().length === 0) {
-      console.log(">>> Initializing Firebase Admin with default credentials...");
-      initializeApp();
+      initializeApp({
+        projectId: firebaseConfig.projectId
+      });
     }
 
     db = firebaseConfig.firestoreDatabaseId 
       ? getFirestore(firebaseConfig.firestoreDatabaseId) 
       : getFirestore();
     
-    console.log(">>> Firebase Admin successfully set up.");
+    logToFile(">>> Firebase Admin successfully set up.");
   } catch (err) {
-    console.error("!!! Firebase Admin init failed:", err);
+    logToFile(`!!! Firebase Admin init failed: ${err}`);
   }
 
   app.use(bodyParser.json());
@@ -57,9 +77,9 @@ async function startServer() {
 
   // Telegram Webhook
   app.post("/api/telegram-webhook", async (req, res) => {
-    console.log(">>> Received Telegram Webhook request");
+    logToFile(`>>> Webhook hit from ${req.ip}. Query: ${JSON.stringify(req.query)}`);
     if (!db) {
-      console.error("!!! Firestore not available in webhook");
+      logToFile("!!! DB not ready");
       return res.status(500).send("DB not ready");
     }
 
@@ -67,18 +87,21 @@ async function startServer() {
     const ownerId = req.query.ownerId as string;
     
     if (!ownerId) {
-      console.error("!!! Missing ownerId in webhook URL query");
+      logToFile("!!! Missing ownerId in query");
       return res.sendStatus(200);
     }
 
     try {
-      // Fetch user settings
+      logToFile(`>>> Processing for owner: ${ownerId}`);
       const settingsSnap = await db.collection("users").doc(ownerId).collection("settings").doc("info").get();
+      if (!settingsSnap.exists) {
+        logToFile(`!!! Settings not found at /users/${ownerId}/settings/info`);
+      }
       const settingsData = settingsSnap.data();
       const botToken = settingsData?.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
 
       if (!botToken) {
-        console.error("!!! No Bot Token found for user:", ownerId);
+        logToFile("!!! No bot token");
         return res.sendStatus(200);
       }
 
@@ -89,7 +112,7 @@ async function startServer() {
 
         if (guestName && data.startsWith("cat:")) {
           const category = data.split(":")[1];
-          console.log(`>>> Adding guest: ${guestName} to category: ${category} (User: ${ownerId})`);
+          logToFile(`>>> Adding guest: ${guestName} to category: ${category} (User: ${ownerId})`);
           
           await db.collection("users").doc(ownerId).collection("guests").add({
             name: guestName,
@@ -113,7 +136,7 @@ async function startServer() {
       if (message && message.text) {
         const chatId = message.chat.id;
         const text = message.text.trim();
-        console.log(`>>> Received text message: "${text}" from chatId: ${chatId}`);
+        logToFile(`>>> Received text message: "${text}" from chatId: ${chatId}`);
 
         if (text === "/start") {
           await sendTelegram(botToken, "sendMessage", {
@@ -144,7 +167,7 @@ async function startServer() {
         });
       }
     } catch (error) {
-      console.error("!!! Telegram Webhook processing error:", error);
+      logToFile(`!!! Telegram Webhook processing error: ${error}`);
     }
 
     res.sendStatus(200);
@@ -155,6 +178,41 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     console.log(">>> Health check hit");
     res.json({ status: "ok" });
+  });
+
+  // Manual Trigger to Setup Bot Webhook
+  app.post("/api/setup-bot", async (req, res) => {
+    const { ownerId } = req.body;
+    if (!ownerId || !db) {
+      logToFile("!!! Identity or DB missing in setup-bot");
+      return res.status(400).json({ error: "Missing identity or DB not ready" });
+    }
+
+    try {
+      const snap = await db.collection("users").doc(ownerId).collection("settings").doc("info").get();
+      const token = snap.data()?.telegramBotToken;
+
+      if (!token) {
+        logToFile(`!!! Setup failed: No Bot Token found for ${ownerId}`);
+        return res.status(400).json({ error: "No Bot Token saved. Please save it first." });
+      }
+
+      const protocol = req.headers["x-forwarded-proto"] || "http";
+      const host = req.headers["host"];
+      const webhookUrl = `${protocol}://${host}/api/telegram-webhook?ownerId=${ownerId}`;
+
+      logToFile(`>>> FORCING WEBHOOK SETUP for ${ownerId}`);
+      logToFile(`>>> TARGET URL: ${webhookUrl}`);
+
+      const telRes = await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
+      const result = await telRes.json();
+
+      logToFile(`>>> Telegram Setup Result: ${JSON.stringify(result)}`);
+      res.json({ success: true, result });
+    } catch (err) {
+      logToFile(`!!! Setup-bot endpoint error: ${err}`);
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   // Vite middleware for development
