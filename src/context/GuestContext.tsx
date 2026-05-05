@@ -264,9 +264,18 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      console.log("Login successful:", result.user.email);
     } catch (error) {
-      console.error(error);
+      const authError = error as { code?: string; message?: string };
+      console.error("Login Error:", authError.code, authError.message);
+      if (authError.code === 'auth/unauthorized-domain') {
+        alert("Domain Not Authorized: Please add this domain to your Firebase Console under Authentication > Settings > Authorized Domains.");
+      } else if (authError.code === 'auth/popup-blocked') {
+        alert("Popup Blocked: Please allow popups for this site to sign in.");
+      } else {
+        alert("Login failed: " + authError.message);
+      }
     }
   }, []);
 
