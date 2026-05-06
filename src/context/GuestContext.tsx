@@ -260,25 +260,57 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const updateCategory = useCallback(async (id: string, name: string) => {
+  const updateCategory = useCallback(async (id: string, nextName: string) => {
     if (!user) return;
     const path = `users/${user.uid}/categories/${id}`;
+    const oldCategory = categories.find(c => c.id === id);
+    if (!oldCategory) return;
+    const oldName = oldCategory.name;
+
     try {
-      await updateDoc(doc(db, path), { name });
+      const batch = writeBatch(db);
+      
+      // Update the category document
+      batch.update(doc(db, path), { name: nextName });
+
+      // Update all guests that were in this category
+      const guestsToUpdate = guests.filter(g => g.category === oldName);
+      guestsToUpdate.forEach(guest => {
+        const guestRef = doc(db, 'users', user.uid, 'guests', guest.id);
+        batch.update(guestRef, { category: nextName });
+      });
+
+      await batch.commit();
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, path);
     }
-  }, [user]);
+  }, [user, categories, guests]);
 
   const deleteCategory = useCallback(async (id: string) => {
     if (!user) return;
     const path = `users/${user.uid}/categories/${id}`;
+    const categoryToDelete = categories.find(c => c.id === id);
+    if (!categoryToDelete) return;
+    const categoryName = categoryToDelete.name;
+
     try {
-      await deleteDoc(doc(db, path));
+      const batch = writeBatch(db);
+      
+      // Delete the category document
+      batch.delete(doc(db, path));
+
+      // Update all guests that were in this category to be "Uncategorized"
+      const guestsToUpdate = guests.filter(g => g.category === categoryName);
+      guestsToUpdate.forEach(guest => {
+        const guestRef = doc(db, 'users', user.uid, 'guests', guest.id);
+        batch.update(guestRef, { category: 'Uncategorized' });
+      });
+
+      await batch.commit();
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, path);
     }
-  }, [user]);
+  }, [user, categories, guests]);
 
   const updateSettings = useCallback(async (newSettings: WeddingSettings) => {
     if (!user) return;
