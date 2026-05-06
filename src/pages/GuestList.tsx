@@ -5,6 +5,8 @@ import { Search, Edit2, Trash2, X, Users, ChevronDown, Check, PlusCircle } from 
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { ConnectionStatus } from '../components/ConnectionStatus';
+
 export function GuestList({ onViewChange }: { onViewChange: (view: View) => void }) {
   const { guests, categories, deleteGuest, updateGuest, bulkAddGuests, settings } = useGuests();
   const [searchTerm, setSearchTerm] = useState('');
@@ -127,11 +129,14 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-4 border-b border-natural-border/50 pb-8">
-        <div>
-          <h2 className="text-3xl font-serif font-bold text-natural-ink">Guest List</h2>
-          <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">
-            {filteredGuests.length} guests in your celebration circle
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-serif font-bold text-natural-ink">Guest List</h2>
+            <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">
+              {filteredGuests.length} guests in your celebration circle
+            </p>
+          </div>
+          <ConnectionStatus />
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">

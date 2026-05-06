@@ -16,6 +16,8 @@ import {
 
 import { View } from '../types';
 
+import { ConnectionStatus } from '../components/ConnectionStatus';
+
 export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void }) {
   const { guests, categories, settings, updateGuest } = useGuests();
 
@@ -61,11 +63,14 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
     <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
       <header className="pt-4 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h2 className="text-3xl font-serif font-bold text-natural-ink">
-              {settings.brideName} & {settings.groomName}'s Celebration
-            </h2>
-            <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Reflecting on your journey together</p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h2 className="text-3xl font-serif font-bold text-natural-ink">
+                {settings.brideName} & {settings.groomName}'s Celebration
+              </h2>
+              <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Reflecting on your journey together</p>
+            </div>
+            <ConnectionStatus />
           </div>
           <div className="bg-natural-olive/10 border border-natural-olive/20 rounded-2xl p-4 flex items-center gap-4">
             <div className="text-right">

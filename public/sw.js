@@ -1,5 +1,6 @@
-const CACHE_NAME = 'wedding-planner-v1';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'wedding-manager-v3';
+
+const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json'
@@ -7,38 +8,52 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      );
     })
   );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
-  if (event.request.method !== 'GET') return;
+  const { request } = event;
+  const url = new URL(request.url);
+
+  if (url.origin !== self.location.origin) return;
+  if (request.method !== 'GET') return;
+
+  const isAsset = url.pathname.startsWith('/assets/');
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse && isAsset) {
+        return cachedResponse;
+      }
 
-      return fetch(event.request).then((response) => {
-        // Don't cache firestore requests (handled by firestore sdk) or external APIs
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+      const fetchPromise = fetch(request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
         }
-
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
-        return response;
+        return networkResponse;
       }).catch(() => {
-        // Offline fallback for main page if not in cache
-        if (event.request.mode === 'navigate') {
+        if (request.mode === 'navigate') {
           return caches.match('/');
         }
       });
+
+      return cachedResponse || fetchPromise;
     })
   );
 });
