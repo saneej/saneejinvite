@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
-import { Download, FileJson, FileSpreadsheet, Bot, Info, Copy, Check } from 'lucide-react';
+import { Download, FileJson, FileSpreadsheet, Bot, Info, Copy, Check, MessageSquare } from 'lucide-react';
 import { motion } from 'motion/react';
-import { auth } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
 export function Settings() {
-  const { settings, updateSettings, guests } = useGuests();
+  const { settings, updateSettings, guests, user } = useGuests();
   const [formData, setFormData] = useState(settings);
   const [botUsername, setBotUsername] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showToken, setShowToken] = useState(false);
 
-  const webhookUrl = `${window.location.origin}/api/telegram-webhook?ownerId=${auth.currentUser?.uid || ''}`;
+  const webhookUrl = `${window.location.origin}/api/telegram-webhook?ownerId=${user?.uid || ''}`;
 
   const copyToClipboard = () => {
+    if (!webhookUrl || !user) return;
     navigator.clipboard.writeText(webhookUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -245,15 +245,22 @@ export function Settings() {
                         // First, save the current form data to ensure the server sees the latest token
                         await updateSettings(formData);
                         
-                        const idToken = await auth.currentUser?.getIdToken();
+                        if (!user) throw new Error('Not authenticated');
+                        const idToken = await user.getIdToken();
                         const res = await fetch('/api/setup-bot', {
                           method: 'POST',
                           headers: { 
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${idToken}`
                           },
-                          body: JSON.stringify({ ownerId: auth.currentUser?.uid })
+                          body: JSON.stringify({ ownerId: user.uid })
                         });
+                        
+                        if (!res.ok) {
+                          const errorBody = await res.text();
+                          throw new Error(`HTTP ${res.status}: ${errorBody}`);
+                        }
+
                         const data = await res.json();
                         if (data.success) {
                           if (data.botUsername) setBotUsername(data.botUsername);
@@ -270,8 +277,9 @@ export function Settings() {
                             alert('❌ Link failed: ' + errorMsg);
                           }
                         }
-                      } catch {
-                        alert('❌ Error connecting to server.');
+                      } catch (err) {
+                        console.error('Setup Bot Error:', err);
+                        alert(`❌ Error connecting to server: ${err instanceof Error ? err.message : 'Unknown network error'}`);
                       }
                     }}
                     className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"

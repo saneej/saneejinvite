@@ -456,7 +456,7 @@ Guest List Overview:
 - Total Guests: ${guests.length}
 
 Guest Data:
-${guests.map((g: any) => `- ${g.name} (${g.category}): Status: ${g.status}`).join('\n')}
+${guests.map((g: { name: string; category: string; status: string }) => `- ${g.name} (${g.category}): Status: ${g.status}`).join('\n')}
 
 Using this data, answer the user's question or help them with their wedding planning. 
 If they ask for statistics, calculate them. If they ask for advice, be supportive and elegant.
@@ -468,7 +468,7 @@ Keep your response concise and helpful.`;
         history: [
           { role: 'user', parts: [{ text: contextPrompt }] },
           { role: 'model', parts: [{ text: "Understood. I am ready to help you manage your wedding guest list and planning." }] },
-          ...(history || []).map((h: any) => ({
+          ...(history || []).map((h: { role: string; text: string }) => ({
             role: h.role === 'user' ? 'user' : 'model',
             parts: [{ text: h.text }]
           }))
