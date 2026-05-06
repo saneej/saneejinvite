@@ -16,17 +16,17 @@ service cloud.firestore {
     // Entity Validations
     function isValidGuest(data) {
       return data.keys().hasAll(['name', 'category', 'status', 'createdAt', 'ownerId'])
-        && data.keys().size() <= 7 // allow optional phone/notes
+        && data.keys().size() <= 10
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.category is string && data.category.size() > 0
         && data.status in ['Not Invited', 'Invited', 'Confirmed', 'Not Coming']
-        && data.createdAt is timestamp
+        && (data.createdAt is timestamp || data.createdAt is map) // Handle serverTimestamp map if needed
         && data.ownerId == request.auth.uid;
     }
 
     function isValidCategory(data) {
       return data.keys().hasAll(['name', 'ownerId'])
-        && data.keys().size() == 2
+        && data.keys().size() <= 5
         && data.name is string && data.name.size() > 0 && data.name.size() <= 50
         && data.ownerId == request.auth.uid;
     }

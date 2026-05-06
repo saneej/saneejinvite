@@ -368,7 +368,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     updateSettings,
     login,
     logout,
-  }), [guests, categories, settings, user, isLoading, addGuest, updateGuest, deleteGuest, addCategory, updateCategory, deleteCategory, updateSettings, login, logout]);
+  }), [guests, categories, settings, user, isLoading, addGuest, bulkAddGuests, updateGuest, deleteGuest, addCategory, updateCategory, deleteCategory, updateSettings, login, logout]);
 
   return <GuestContext.Provider value={value}>{children}</GuestContext.Provider>;
 }

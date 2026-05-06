@@ -281,10 +281,21 @@ async function startServer() {
   app.post("/api/telegram-webhook", async (req, res) => {
     logToFile(`>>> Webhook hit. Query: ${JSON.stringify(req.query)}`);
     const ownerId = req.query.ownerId as string;
-    if (!ownerId) return res.sendStatus(200);
-
-    const { message, callback_query } = req.body;
     
+    const { message, callback_query } = req.body;
+    const bodyChatId = message?.chat?.id || callback_query?.message?.chat?.id;
+
+    if (!ownerId) {
+      logToFile("!!! Webhook received without ownerId query param.");
+      // We don't have owner's bot token here easily without searching all users,
+      // but we might have it in cache if someone else linked it.
+      // For now, if no ownerId in URL, we can't respond securely unless we know WHICH bot token was hit.
+      // But we can try to find token from request headers (Telegram sends token in URL if we want)
+      // Actually, Telegram doesn't send the token in the body/headers of the webhook by default
+      // except as part of the URL we gave it.
+      return res.sendStatus(200);
+    }
+
     try {
       const botToken = await getBotToken(ownerId);
       if (!botToken) {
@@ -311,7 +322,7 @@ async function startServer() {
           } else {
             await sendTelegram(botToken, "sendMessage", {
               chat_id: chatId,
-              text: `❌ Failed to save guest. Please check your app settings.`,
+              text: `❌ Failed to save guest. Make sure your Telegram ID is linked in settings.`,
             });
           }
           
@@ -323,12 +334,20 @@ async function startServer() {
       if (message && message.text) {
         const chatId = message.chat.id;
         const text = message.text.trim();
-        logToFile(`>>> Received text message: "${text}" from chatId: ${chatId}`);
+        logToFile(`>>> Received text message: "${text}" from chatId: ${chatId} (Owner: ${ownerId})`);
 
-        if (text === "/start") {
+        if (text.startsWith("/start")) {
           await sendTelegram(botToken, "sendMessage", {
             chat_id: chatId,
-            text: "💍 Welcome! Send me a name to add a new guest to your wedding list.",
+            text: "💍 Bot linked! \n\nSend me a name to add a new guest.\n\nType /status to verify connection.",
+          });
+          return res.sendStatus(200);
+        }
+
+        if (text === "/status") {
+          await sendTelegram(botToken, "sendMessage", {
+            chat_id: chatId,
+            text: `✅ Connection Active\n👤 Owner ID: ${ownerId.substring(0, 5)}...`,
           });
           return res.sendStatus(200);
         }
@@ -376,17 +395,18 @@ async function startServer() {
         return res.status(400).json({ error: "Could not retrieve Bot Token. Save changes first." });
       }
 
-      const protocol = "https"; 
       const rawHost = (req.headers["x-forwarded-host"] as string) || (req.headers["host"] as string);
-      const domain = rawHost.split(":")[0];
-      const webhookUrl = `${protocol}://${domain}/api/telegram-webhook?ownerId=${ownerId}`;
+      // AI Studio preview URLs might have ports or be behind specific proxies.
+      // We want the external host.
+      const webhookUrl = `https://${rawHost}/api/telegram-webhook?ownerId=${ownerId}`;
 
-      logToFile(`>>> Webhook Setup: using domain ${domain}. Final URL: ${webhookUrl}`);
+      logToFile(`>>> Webhook Setup: rawHost=${rawHost}. Final URL: ${webhookUrl}`);
       
       // Step 1: Check existing webhook info
       try {
-        const checkRes = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+        const checkRes = await fetch(`https://api.telegram.org/bot${token.trim()}/getWebhookInfo`);
         const checkData = await checkRes.json();
+        logToFile(`>>> Current Webhook Info: ${JSON.stringify(checkData)}`);
         if (checkData.ok && checkData.result.url === webhookUrl) {
           logToFile(">>> Webhook already correctly set. Skipping setWebhook.");
           return res.json({ success: true, result: checkData.result, alreadySet: true });
@@ -399,8 +419,26 @@ async function startServer() {
       const telRes = await fetch(`https://api.telegram.org/bot${token.trim()}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=true`);
       const result = await telRes.json();
 
-      logToFile(`>>> Telegram Setup Result: ${JSON.stringify(result)}`);
-      res.json({ success: true, result });
+      logToFile(`>>> Telegram setWebhook Result: ${JSON.stringify(result)}`);
+      
+      let botUsername = null;
+      if (result.ok) {
+        try {
+          const meRes = await fetch(`https://api.telegram.org/bot${token.trim()}/getMe`);
+          const meData = await meRes.json();
+          if (meData.ok) {
+            botUsername = meData.result.username;
+            logToFile(`>>> Bot Username confirmed: @${botUsername}`);
+          }
+        } catch (e) {
+          logToFile(`>>> getMe failed: ${e}`);
+        }
+      }
+      
+      if (!result.ok) {
+        logToFile(`!!! setWebhook failed: ${result.description}`);
+      }
+      res.json({ success: true, result, botUsername });
     } catch (err) {
       logToFile(`!!! Setup-bot final error: ${err}`);
       res.status(500).json({ error: String(err) });

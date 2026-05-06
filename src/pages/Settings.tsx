@@ -8,8 +8,10 @@ import { cn } from '../lib/utils';
 export function Settings() {
   const { settings, updateSettings, guests } = useGuests();
   const [formData, setFormData] = useState(settings);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showToken, setShowToken] = useState(false);
 
   const webhookUrl = `${window.location.origin}/api/telegram-webhook?ownerId=${auth.currentUser?.uid || ''}`;
 
@@ -172,27 +174,46 @@ export function Settings() {
                 </div>
               </div>
 
-              <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex gap-3">
-                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                <div className="space-y-2">
-                  <p className="text-[11px] text-blue-900 leading-relaxed">
-                    1. Create a bot using <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="font-bold underline">@BotFather</a>.<br />
-                    2. Paste the <strong>Bot Token</strong> below.<br />
-                    3. Click <strong>Save All Changes</strong>.<br />
-                    4. Click <strong>Activate Webhook Now</strong> to link them.
+              <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-2xl flex gap-4">
+                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="space-y-3">
+                  <p className="text-[12px] text-blue-900 leading-relaxed font-medium">
+                    To enable Telegram integration and add guests on the go:
                   </p>
+                  <ul className="text-[11px] text-blue-800/80 space-y-2 list-decimal list-inside">
+                    <li>Open <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-blue-700 font-bold underline decoration-blue-300 underline-offset-2">@BotFather</a> on Telegram.</li>
+                    <li>Send <code className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-700 font-mono">/newbot</code> and follow instructions to get your <strong>API Token</strong>.</li>
+                    <li>Paste that token into the <strong>Bot Token</strong> field below and click <strong>Save All Changes</strong>.</li>
+                    <li>Click <strong>Activate Webhook</strong> below.</li>
+                    <li>Finally, click the <strong>Open Chat</strong> link and send <code className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-700 font-mono">/start</code> to initialize.</li>
+                  </ul>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Bot Token</label>
-                <input 
-                  type="text" 
-                  value={formData.telegramBotToken || ''} 
-                  onChange={(e) => setFormData({...formData, telegramBotToken: e.target.value})}
-                  placeholder="Paste your bot token (e.g. 123456:ABC...)"
-                  className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none focus:border-natural-olive transition-all"
-                />
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Bot Token</label>
+                  <button 
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter hover:underline"
+                  >
+                    {showToken ? 'Hide' : 'Show Sensitive Token'}
+                  </button>
+                </div>
+                <div className="relative">
+                  <input 
+                    type={showToken ? "text" : "password"} 
+                    value={formData.telegramBotToken || ''} 
+                    onChange={(e) => setFormData({...formData, telegramBotToken: e.target.value})}
+                    placeholder="e.g. 123456789:ABCdefGHIjkl..."
+                    className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none focus:border-natural-olive transition-all pr-12"
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
+                    <Bot className={cn("w-4 h-4 transition-colors", formData.telegramBotToken ? "text-blue-500" : "text-natural-border")} />
+                  </div>
+                </div>
+                <p className="text-[9px] text-natural-muted italic">This token grants access to your bot. Keep it secret.</p>
               </div>
 
               <div className="space-y-2">
@@ -235,10 +256,11 @@ export function Settings() {
                         });
                         const data = await res.json();
                         if (data.success) {
+                          if (data.botUsername) setBotUsername(data.botUsername);
                           if (data.alreadySet) {
                             alert('✅ Webhook is already correctly set up and active!');
                           } else {
-                            alert('✅ Bot linked successfully! Send /start to your bot on Telegram now.');
+                            alert('✅ Bot linked successfully! Click the link below to start chatting.');
                           }
                         } else {
                           const errorMsg = data.result?.description || data.error || 'Unknown error';
@@ -248,7 +270,7 @@ export function Settings() {
                             alert('❌ Link failed: ' + errorMsg);
                           }
                         }
-                      } catch (err) {
+                      } catch {
                         alert('❌ Error connecting to server.');
                       }
                     }}
@@ -256,6 +278,22 @@ export function Settings() {
                   >
                     Activate Webhook Now
                   </button>
+
+                  {botUsername && (
+                    <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex flex-col items-center gap-3">
+                      <p className="text-[11px] text-emerald-800 font-bold">Step 5: Start your bot</p>
+                      <a 
+                        href={`https://t.me/${botUsername}?start=linked`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        Open @{botUsername}
+                      </a>
+                      <p className="text-[9px] text-emerald-600 italic">Click the link then press START in Telegram</p>
+                    </div>
+                  )}
                   {!settings.telegramBotToken && (
                     <p className="text-[9px] text-blue-600 mt-2 font-medium">
                       Note: You must click "Save All Changes" for the bot to start responding.
