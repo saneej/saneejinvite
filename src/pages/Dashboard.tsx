@@ -19,7 +19,21 @@ import { View } from '../types';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 
 export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void }) {
-  const { guests, categories, settings, updateGuest } = useGuests();
+  const { guests, categories, settings, updateGuest, user, addGuest } = useGuests();
+
+  const handleSeedData = async () => {
+    if (!user || categories.length === 0) return;
+    const sampleGuests = [
+      { name: "Sample: John Doe", category: categories[0].name, phone: "1234567890", status: InvitationStatus.CONFIRMED },
+      { name: "Sample: Jane Smith", category: categories[0].name, phone: "0987654321", status: InvitationStatus.NOT_INVITED },
+      { name: "Sample: Alex Johnson", category: categories[categories.length - 1].name, phone: "5551234567", status: InvitationStatus.INVITED }
+    ];
+    
+    for (const g of sampleGuests) {
+      await addGuest(g.name, g.category, g.phone);
+    }
+    alert("Sample data added! If you don't see it in a few seconds, there may be a connection issue.");
+  };
 
   const totalGuests = guests.length;
   const invitedCount = guests.filter(g => g.status === InvitationStatus.INVITED || g.status === InvitationStatus.CONFIRMED).length;
@@ -295,6 +309,82 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
           </div>
         </div>
       </div>
+      {/* Activity and Breakdown SECTION ENDS */}
+      
+      {totalGuests === 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm flex flex-col items-center text-center space-y-6"
+        >
+          <div className="bg-natural-sidebar/50 p-4 rounded-full">
+            <Users className="w-8 h-8 text-natural-muted" />
+          </div>
+          <div className="max-w-md">
+            <h3 className="text-xl font-serif font-bold text-natural-ink mb-2">No guest data found</h3>
+            <p className="text-sm text-natural-muted leading-relaxed">
+              We couldn't find any guests associated with your account. This could be because your list is empty, 
+              or there's a connection delay.
+            </p>
+          </div>
+          
+          <div className="pt-4 flex flex-col sm:flex-row gap-4 w-full justify-center">
+            <button 
+              onClick={() => onViewChange('add')}
+              className="px-8 py-3 bg-natural-olive text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-natural-ink transition-all"
+            >
+              Add First Guest
+            </button>
+            <button 
+              onClick={handleSeedData}
+              className="px-8 py-3 bg-white border border-natural-border text-natural-ink rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-natural-sidebar transition-all"
+            >
+              Seed Sample Data
+            </button>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-natural-border/50 w-full text-left">
+            <h4 className="text-[10px] uppercase font-bold tracking-widest text-natural-muted mb-4">Diagnostics</h4>
+            <div className="bg-natural-sidebar/30 rounded-xl p-4 space-y-2">
+              <p className="text-[10px] font-mono whitespace-nowrap overflow-hidden text-ellipsis">
+                <span className="text-natural-muted">UID:</span> {user?.uid || 'Not logged in'}
+              </p>
+              <p className="text-[10px] font-mono">
+                <span className="text-natural-muted">Path:</span> users/{user?.uid || '...'}/guests
+              </p>
+              <div className="text-[10px] font-mono flex items-center gap-2">
+                <span className="text-natural-muted">Status:</span> 
+                <div className="flex-1 h-px bg-natural-border/20 mx-2" />
+                <ConnectionStatus />
+              </div>
+              <div className="pt-2 flex gap-2">
+                <button 
+                  onClick={() => {
+                    if ('serviceWorker' in navigator) {
+                      navigator.serviceWorker.getRegistrations().then(regs => {
+                        for(let reg of regs) reg.unregister();
+                        window.location.reload();
+                      });
+                    } else {
+                      window.location.reload();
+                    }
+                  }}
+                  className="text-[9px] font-bold text-natural-olive underline"
+                >
+                  Clear Cache & Reload
+                </button>
+                <span className="text-natural-border/30">|</span>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="text-[9px] font-bold text-natural-olive underline"
+                >
+                  Hard Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

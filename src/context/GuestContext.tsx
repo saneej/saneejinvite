@@ -148,12 +148,16 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
           return { 
             id: doc.id, 
             ...d,
-            createdAt: d.createdAt?.toMillis?.() || Date.now()
+            createdAt: d.createdAt?.toMillis?.() || (typeof d.createdAt === 'number' ? d.createdAt : Date.now())
           } as Guest;
         });
         setGuests(data);
+        setIsLoading(false);
       },
-      (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/guests`)
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/guests`);
+        setIsLoading(false);
+      }
     );
 
     // Subscribe to Categories

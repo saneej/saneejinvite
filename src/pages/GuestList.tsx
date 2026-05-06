@@ -119,7 +119,7 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
       // pre-group them or notify user.
       // Better yet: Automatically create the guests with the suggested categories.
       
-      const guestsToAdd = suggestions.map((s: any) => ({
+      const guestsToAdd = suggestions.map((s: { name: string; category: string }) => ({
         name: s.name,
         category: s.category,
         status: InvitationStatus.NOT_INVITED,

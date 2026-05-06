@@ -413,7 +413,7 @@ async function startServer() {
     if (!ownerId) return res.status(400).json({ error: "ownerId is required" });
 
     try {
-      const settingsDoc = await getFirestore().collection("users").doc(ownerId).collection("config").doc("wedding").get();
+      const settingsDoc = await getFirestore().collection("users").doc(ownerId).collection("settings").doc("info").get();
       const settings = settingsDoc.data();
       const token = settings?.telegramToken || process.env.TELEGRAM_BOT_TOKEN;
 
