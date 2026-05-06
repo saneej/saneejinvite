@@ -32,4 +32,13 @@ export interface WeddingSettings {
   telegramEnabled: boolean;
 }
 
-export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite';
+export interface ActivityLog {
+  id: string;
+  guestId?: string;
+  guestName?: string;
+  action: string;
+  details: string;
+  timestamp: number;
+}
+
+export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite' | 'logs';

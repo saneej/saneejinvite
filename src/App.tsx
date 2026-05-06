@@ -8,6 +8,8 @@ import { AddGuest } from './pages/AddGuest';
 import { Categories } from './pages/Categories';
 import { Settings } from './pages/Settings';
 import Invite from './pages/Invite';
+import { Logs } from './pages/Logs';
+import { WeddingAIBot } from './components/WeddingAIBot';
 import { AnimatePresence, motion } from 'motion/react';
 import { Heart, LogIn, Loader2 } from 'lucide-react';
 
@@ -63,6 +65,7 @@ function AppContent() {
       case 'categories': return <Categories />;
       case 'settings': return <Settings />;
       case 'invite': return <Invite />;
+      case 'logs': return <Logs />;
       default: return <Dashboard onViewChange={setActiveView} />;
     }
   };
@@ -89,6 +92,7 @@ function AppContent() {
       </main>
 
       <MobileNav activeView={activeView} onViewChange={setActiveView} />
+      <WeddingAIBot />
     </div>
   );
 }

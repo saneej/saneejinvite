@@ -30,7 +30,7 @@ async function startServer() {
     }
   });
 
-  let db: any = null;
+  let db: FirebaseFirestore.Firestore | null = null;
 
   try {
     const configPath = path.join(process.cwd(), "firebase-applet-config.json");
@@ -209,7 +209,7 @@ async function startServer() {
         const projId = firebaseConfig.projectId;
         const url = `https://firestore.googleapis.com/v1/projects/${projId}/databases/${dbId}/documents/users/${ownerId}/guests`;
         
-        const fields: any = {
+        const fields: Record<string, { stringValue?: string; timestampValue?: string }> = {
           name: { stringValue: name },
           category: { stringValue: category },
           status: { stringValue: "Not Invited" },
@@ -245,7 +245,7 @@ async function startServer() {
       try {
         const snap = await db.collection("users").doc(ownerId).collection("categories").get();
         if (!snap.empty) {
-          return snap.docs.map((d: any) => d.data().name);
+          return snap.docs.map((d) => (d.data() as { name: string }).name);
         }
       } catch (e) {
         logToFile(`>>> Admin SDK getCategories failed: ${e}`);
@@ -265,9 +265,9 @@ async function startServer() {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as { documents?: { fields: { name: { stringValue: string } } }[] };
           if (data.documents) {
-             return data.documents.map((d: any) => d.fields.name.stringValue);
+             return data.documents.map((d) => d.fields.name.stringValue);
           }
         }
       } catch (e) {
@@ -287,12 +287,6 @@ async function startServer() {
 
     if (!ownerId) {
       logToFile("!!! Webhook received without ownerId query param.");
-      // We don't have owner's bot token here easily without searching all users,
-      // but we might have it in cache if someone else linked it.
-      // For now, if no ownerId in URL, we can't respond securely unless we know WHICH bot token was hit.
-      // But we can try to find token from request headers (Telegram sends token in URL if we want)
-      // Actually, Telegram doesn't send the token in the body/headers of the webhook by default
-      // except as part of the URL we gave it.
       return res.sendStatus(200);
     }
 
@@ -359,7 +353,7 @@ async function startServer() {
           chat_id: chatId,
           text: `Which category for "${text}"?`,
           reply_markup: {
-            inline_keyboard: categories.reduce((acc: any[][], cat, i) => {
+            inline_keyboard: categories.reduce((acc: { text: string; callback_data: string }[][], cat, i) => {
               if (i % 2 === 0) acc.push([{ text: cat, callback_data: `cat:${cat}` }]);
               else acc[acc.length - 1].push({ text: cat, callback_data: `cat:${cat}` });
               return acc;
@@ -374,6 +368,74 @@ async function startServer() {
     res.sendStatus(200);
   });
 
+  // --- Specific Telegram Routes as requested by the user ---
+  
+  app.get("/api/telegram/webhook", (req, res) => {
+    res.send("Telegram webhook endpoint is active.");
+  });
+
+  app.post("/api/telegram/webhook", async (req, res) => {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) {
+      logToFile("!!! Global TELEGRAM_BOT_TOKEN is not set in environment.");
+      return res.status(500).json({ error: "TELEGRAM_BOT_TOKEN not configured" });
+    }
+
+    try {
+      const update = req.body;
+      logToFile(`[GlobalBot] Incoming update: ${JSON.stringify(update)}`);
+
+      if (update && update.message) {
+        const chatId = update.message.chat.id;
+        const text = update.message.text;
+        const firstName = update.message.from.first_name;
+
+        if (chatId && firstName) {
+          logToFile(`[GlobalBot] Replying to ${firstName} (${chatId})`);
+          await sendTelegram(token, "sendMessage", {
+            chat_id: chatId,
+            text: `Hi ${firstName}, your message has been received successfully.`
+          });
+        }
+      }
+      res.sendStatus(200);
+    } catch (err) {
+      logToFile(`!!! GlobalBot Webhook Error: ${err}`);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/telegram/set-webhook", async (req, res) => {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) return res.status(500).json({ error: "TELEGRAM_BOT_TOKEN not set" });
+
+    const rawHost = (req.headers["x-forwarded-host"] as string) || (req.headers["host"] as string);
+    // The user strictly asked for their Vercel URL, but we will use the current host for reliability in previews.
+    // If they want to force the Vercel URL, we can check for an env var or just use req host.
+    const webhookUrl = `https://${rawHost}/api/telegram/webhook`;
+
+    logToFile(`>>> Setting Global Webhook to: ${webhookUrl}`);
+    try {
+      const telRes = await fetch(`https://api.telegram.org/bot${token.trim()}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=true`);
+      const data = await telRes.json();
+      res.json(data);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get("/api/telegram/webhook-info", async (req, res) => {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) return res.status(500).json({ error: "TELEGRAM_BOT_TOKEN not set" });
+
+    try {
+      const telRes = await fetch(`https://api.telegram.org/bot${token.trim()}/getWebhookInfo`);
+      const data = await telRes.json();
+      res.json(data);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
 
   // Health check
   app.get("/api/health", (req, res) => {

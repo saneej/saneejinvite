@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus, Guest, View } from '../types';
-import { Search, Edit2, Trash2, X, Users, ChevronDown, Check, PlusCircle } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Users, ChevronDown, Check, PlusCircle, Sparkles, Wand2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import { AIInvitationAssistant } from '../components/AIInvitationAssistant';
+import { suggestCategories } from '../services/aiService';
 
 export function GuestList({ onViewChange }: { onViewChange: (view: View) => void }) {
   const { guests, categories, deleteGuest, updateGuest, bulkAddGuests, settings } = useGuests();
@@ -23,6 +25,8 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [bulkCategory, setBulkCategory] = useState('Uncategorized');
+  const [isAutoCategorizing, setIsAutoCategorizing] = useState(false);
+  const [aiGuest, setAiGuest] = useState<Guest | null>(null);
 
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = guest.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -100,6 +104,38 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
     await bulkAddGuests(guestsToAdd);
     setBulkText('');
     setShowBulkAdd(false);
+  };
+
+  const autoCategorize = async () => {
+    const names = bulkText.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+    if (names.length === 0) return;
+    
+    setIsAutoCategorizing(true);
+    try {
+      const suggestions = await suggestCategories(names);
+      // For simplicity, we'll just show the user and they can confirm, 
+      // but here we will actually transform the bulk text into a more structured list 
+      // if we wanted to. To keep it consistent with the UI, we'll just 
+      // pre-group them or notify user.
+      // Better yet: Automatically create the guests with the suggested categories.
+      
+      const guestsToAdd = suggestions.map((s: any) => ({
+        name: s.name,
+        category: s.category,
+        status: InvitationStatus.NOT_INVITED,
+        phone: '',
+        notes: 'AI auto-categorized'
+      }));
+
+      await bulkAddGuests(guestsToAdd);
+      setBulkText('');
+      setShowBulkAdd(false);
+      alert(`Successfully imported ${guestsToAdd.length} guests with AI categorization!`);
+    } catch (err) {
+      alert("AI categorization failed. Please try manual import.");
+    } finally {
+      setIsAutoCategorizing(false);
+    }
   };
 
   const getWhatsAppLink = (guest: Guest, type: 'greeting' | 'invitation') => {
@@ -395,6 +431,13 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
                               <span className="opacity-60 mb-0.5">2.</span>
                               Invite
                             </a>
+                            <button
+                              onClick={() => setAiGuest(guest)}
+                              className="px-2.5 py-1.5 bg-natural-olive text-white hover:bg-natural-ink transition-all flex items-center justify-center border-l border-white/10"
+                              title="Let AI write the message"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                       )}
                     </div>
@@ -505,19 +548,38 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
                   </select>
                 </div>
 
-                <div className="pt-4 flex gap-3">
+                <div className="pt-4 flex flex-col gap-3">
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setShowBulkAdd(false)}
+                      className="flex-1 px-6 py-4 border border-natural-border rounded-xl text-[10px] font-bold uppercase tracking-widest text-natural-muted hover:bg-natural-sidebar transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={processBulkAdd}
+                      disabled={!bulkText.trim() || isAutoCategorizing}
+                      className="flex-[2] bg-natural-sidebar/50 border border-natural-border/30 text-natural-ink px-6 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-natural-sidebar transition-all disabled:opacity-50"
+                    >
+                      Basic Import
+                    </button>
+                  </div>
                   <button 
-                    onClick={() => setShowBulkAdd(false)}
-                    className="flex-1 px-6 py-4 border border-natural-border rounded-xl text-[10px] font-bold uppercase tracking-widest text-natural-muted hover:bg-natural-sidebar transition-all"
+                    onClick={autoCategorize}
+                    disabled={!bulkText.trim() || isAutoCategorizing}
+                    className="w-full bg-natural-olive text-white px-6 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-natural-ink transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50"
                   >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={processBulkAdd}
-                    disabled={!bulkText.trim()}
-                    className="flex-[2] bg-natural-olive text-white px-6 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-natural-ink transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Import {bulkText.split('\n').filter(n => n.trim()).length} Guests
+                    {isAutoCategorizing ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        AI is analyzing names...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-4 h-4" />
+                        Smart Categorize & Import with AI
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -530,6 +592,21 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* AI Assistant Modal */}
+      <AnimatePresence>
+        {aiGuest && (
+          <AIInvitationAssistant 
+            guest={aiGuest}
+            settings={settings}
+            onClose={() => setAiGuest(null)}
+            onUseMessage={(msg) => {
+              // The assistant handles copying, just close if needed
+              setAiGuest(null);
+            }}
+          />
         )}
       </AnimatePresence>
 

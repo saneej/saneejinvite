@@ -1,6 +1,6 @@
 {
   "name": "SNJ Wed inviter",
-  "description": "A sophisticated digital suite for managing your wedding guest list, invitations, and seating categories with elegance.",
+  "description": "A sophisticated AI-powered wedding guest manager. Features offline-first support, smart AI categorization, and an AI invitation assistant to craft the perfect messages.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

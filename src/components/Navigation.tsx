@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, UserPlus, Tags, Settings, LogOut, Send } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, Tags, Settings, LogOut, Send, History } from 'lucide-react';
 import { View } from '../types';
 import { cn } from '../lib/utils';
 import { useGuests } from '../context/GuestContext';
@@ -16,6 +16,7 @@ const menuItems: { id: View; label: string; icon: React.ElementType }[] = [
   { id: 'invite', label: 'Invite', icon: Send },
   { id: 'categories', label: 'Categories', icon: Tags },
   { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'logs', label: 'Logs', icon: History },
 ];
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {

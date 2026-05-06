@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useEffect, useState, useCallback } from 'react';
-import { Guest, Category, WeddingSettings } from '../types';
+import { Guest, Category, WeddingSettings, ActivityLog } from '../types';
 import { 
   collection, 
   onSnapshot, 
@@ -76,6 +76,7 @@ interface GuestContextType {
   updateCategory: (id: string, name: string) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   updateSettings: (settings: WeddingSettings) => Promise<void>;
+  logs: ActivityLog[];
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -101,6 +102,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [settings, setSettings] = useState<WeddingSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -187,26 +189,61 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
       (error) => handleFirestoreError(error, OperationType.GET, `users/${user.uid}/settings/info`)
     );
 
+    // Subscribe to Logs
+    const logsRef = collection(userRef, 'logs');
+    const unsubLogs = onSnapshot(logsRef, 
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            ...d,
+            timestamp: d.timestamp?.toMillis?.() || Date.now()
+          } as ActivityLog;
+        }).sort((a, b) => b.timestamp - a.timestamp); // Sort by newest first here for UI
+        setLogs(data.slice(0, 100)); // Keep only last 100 logs for performance
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/logs`)
+    );
+
     return () => {
       unsubGuests();
       unsubCategories();
       unsubSettings();
+      unsubLogs();
     };
+  }, [user]);
+
+  const logActivity = useCallback(async (action: string, details: string, guestId?: string, guestName?: string) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'users', user.uid, 'logs'), {
+        action,
+        details,
+        guestId: guestId || null,
+        guestName: guestName || null,
+        timestamp: serverTimestamp(),
+        ownerId: user.uid
+      });
+    } catch (e) {
+      console.error("Failed to log activity:", e);
+    }
   }, [user]);
 
   const addGuest = useCallback(async (guestData: Omit<Guest, 'id' | 'createdAt'>) => {
     if (!user) return;
     const path = `users/${user.uid}/guests`;
     try {
-      await addDoc(collection(db, 'users', user.uid, 'guests'), {
+      const docRef = await addDoc(collection(db, 'users', user.uid, 'guests'), {
         ...guestData,
         ownerId: user.uid,
         createdAt: serverTimestamp(),
       });
+      await logActivity('Added Guest', `Added ${guestData.name} to ${guestData.category}`, docRef.id, guestData.name);
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, path);
     }
-  }, [user]);
+  }, [user, logActivity]);
 
   const bulkAddGuests = useCallback(async (guestsData: Omit<Guest, 'id' | 'createdAt'>[]) => {
     if (!user || guestsData.length === 0) return;
@@ -225,30 +262,41 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await batch.commit();
+      await logActivity('Bulk Import', `Imported ${guestsData.length} guests`, undefined, undefined);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/guests (bulk)`);
     }
-  }, [user]);
+  }, [user, logActivity]);
 
   const updateGuest = useCallback(async (id: string, updates: Partial<Guest>) => {
     if (!user) return;
     const path = `users/${user.uid}/guests/${id}`;
+    const guest = guests.find(g => g.id === id);
     try {
       await updateDoc(doc(db, path), updates);
+      
+      const changeDesc = Object.keys(updates).map(key => {
+        if (key === 'status') return `status changed to ${updates[key]}`;
+        return `${key} updated`;
+      }).join(', ');
+      
+      await logActivity('Updated Guest', `Updated ${guest?.name || 'Guest'}: ${changeDesc}`, id, guest?.name);
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, path);
     }
-  }, [user]);
+  }, [user, guests, logActivity]);
 
   const deleteGuest = useCallback(async (id: string) => {
     if (!user) return;
     const path = `users/${user.uid}/guests/${id}`;
+    const guest = guests.find(g => g.id === id);
     try {
       await deleteDoc(doc(db, path));
+      await logActivity('Deleted Guest', `Removed ${guest?.name || 'a guest'} from list`, id, guest?.name);
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, path);
     }
-  }, [user]);
+  }, [user, guests, logActivity]);
 
   const addCategory = useCallback(async (name: string) => {
     if (!user) return;
@@ -366,9 +414,10 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     updateCategory,
     deleteCategory,
     updateSettings,
+    logs,
     login,
     logout,
-  }), [guests, categories, settings, user, isLoading, addGuest, bulkAddGuests, updateGuest, deleteGuest, addCategory, updateCategory, deleteCategory, updateSettings, login, logout]);
+  }), [guests, categories, settings, user, isLoading, addGuest, bulkAddGuests, updateGuest, deleteGuest, addCategory, updateCategory, deleteCategory, updateSettings, logs, login, logout]);
 
   return <GuestContext.Provider value={value}>{children}</GuestContext.Provider>;
 }
