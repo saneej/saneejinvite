@@ -440,6 +440,41 @@ async function startServer() {
     }
   });
 
+  app.post("/api/setup-bot", async (req, res) => {
+    const { ownerId } = req.body;
+    if (!ownerId) return res.status(400).json({ error: "ownerId is required" });
+
+    try {
+      const settings = (await getFirestore().collection("users").doc(ownerId).collection("config").doc("wedding").get()).data();
+      const token = settings?.telegramToken || process.env.TELEGRAM_BOT_TOKEN;
+
+      if (!token) return res.status(400).json({ error: "No bot token found for this user." });
+
+      const rawHost = (req.headers["x-forwarded-host"] as string) || (req.headers["host"] as string);
+      const webhookUrl = `https://${rawHost}/api/telegram-webhook?ownerId=${ownerId}`;
+
+      logToFile(`>>> Linking Bot for ${ownerId} to: ${webhookUrl}`);
+      const telRes = await fetch(`https://api.telegram.org/bot${token.trim()}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=true`);
+      const data = await telRes.json();
+      
+      if (data.ok) {
+        // Get bot info
+        const meRes = await fetch(`https://api.telegram.org/bot${token.trim()}/getMe`);
+        const meData = await meRes.json();
+        res.json({ success: true, botUsername: meData.result?.username });
+      } else {
+        res.status(400).json({ error: data.description });
+      }
+    } catch (err) {
+      logToFile(`!!! Setup Bot Error: ${err}`);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get("/api/logs", async (req, res) => {
+    res.json({ status: "ok", message: "Logs are managed via Firestore in the context." });
+  });
+
   // --- AI Endpoints ---
 
   app.post("/api/ai/chat", async (req, res) => {
