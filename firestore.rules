@@ -8,34 +8,49 @@ service cloud.firestore {
 
     // Primitives
     function isSignedIn() { return request.auth != null; }
-    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-@\\.]+$'); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isOwner(userId) { return request.auth.uid == userId; }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isCollaborator(userId) {
+      return isSignedIn() && (
+        isOwner(userId) || (
+          request.auth.token.email_verified == true && 
+          request.auth.token.email != null &&
+          exists(/databases/$(database)/documents/users/$(userId)/collaborators/$(request.auth.token.email))
+        )
+      );
+    }
 
     // Entity Validations
-    function isValidGuest(data) {
+    function isValidGuest(data, userId) {
       return data.keys().hasAll(['name', 'category', 'status', 'createdAt', 'ownerId'])
-        && data.keys().size() <= 10
+        && data.keys().size() <= 12
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
         && data.category is string && data.category.size() > 0
         && data.status in ['Not Invited', 'Invited', 'Confirmed', 'Not Coming']
         && (data.createdAt is timestamp || data.createdAt is map)
         && (data.get('phone', '') is string)
         && (data.get('notes', '') is string)
-        && data.ownerId == request.auth.uid;
+        && (data.get('suggestedBy', '') is string)
+        && (data.get('primaryCaller', '') is string)
+        && data.ownerId == userId;
     }
 
-    function isValidCategory(data) {
+    function isValidCategory(data, userId) {
       return data.keys().hasAll(['name', 'ownerId'])
         && data.keys().size() <= 5
         && data.name is string && data.name.size() > 0 && data.name.size() <= 100
-        && data.ownerId == request.auth.uid;
+        && data.ownerId == userId;
     }
 
-    function isValidSettings(data) {
-      return data.keys().hasAll(['brideName', 'groomName', 'weddingDate', 'venue', 'whatsappTemplate', 'greetingMessage', 'invitationTone', 'telegramEnabled', 'ownerId'])
-        && data.keys().size() <= 11
+    function isValidSettings(data, userId) {
+      return data.keys().hasAll(['brideName', 'groomName', 'weddingDate', 'venue', 'whatsappTemplate', 'greetingMessage', 'invitationTone', 'ownerId'])
+        && data.keys().size() <= 8
         && data.brideName is string && data.brideName.size() <= 100
         && data.groomName is string && data.groomName.size() <= 100
         && data.weddingDate is string && data.weddingDate.size() <= 100
@@ -43,57 +58,61 @@ service cloud.firestore {
         && data.whatsappTemplate is string && data.whatsappTemplate.size() <= 5000
         && data.greetingMessage is string && data.greetingMessage.size() <= 1000
         && data.invitationTone is string && data.invitationTone.size() <= 1000
-        && data.telegramEnabled is bool
-        && (data.get('telegramBotToken', '') is string)
-        && data.ownerId == request.auth.uid;
+        && data.ownerId == userId;
     }
 
-    function isValidLog(data) {
+    function isValidLog(data, userId) {
       return data.keys().hasAll(['action', 'details', 'timestamp', 'ownerId'])
         && data.keys().size() <= 10
         && data.action is string && data.details is string
         && (data.timestamp is timestamp || data.timestamp is map)
-        && data.ownerId == request.auth.uid;
+        && data.ownerId == userId;
+    }
+
+    function isValidCollaborator(data) {
+      return data.keys().hasAll(['email', 'role', 'name', 'addedAt'])
+        && data.keys().size() <= 5
+        && data.email is string && data.role is string && data.name is string;
+    }
+
+    match /users/{userId}/collaborators/{collabEmail} {
+      allow list: if isSignedIn() && (request.auth.uid == userId || exists(/databases/$(database)/documents/users/$(userId)/collaborators/$(request.auth.token.email)));
+      allow get: if isSignedIn() && (request.auth.uid == userId || exists(/databases/$(database)/documents/users/$(userId)/collaborators/$(request.auth.token.email)));
+      allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      allow get: if isCollaborator(userId);
+      allow list: if isSignedIn(); 
       
       match /guests/{guestId} {
-        allow list: if isOwner(userId);
-        allow get: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidGuest(incoming());
-        allow update: if isOwner(userId) && isValidGuest(incoming()) && (
-          incoming().ownerId == existing().ownerId
-        );
-        allow delete: if isOwner(userId);
+        allow list: if isCollaborator(userId);
+        allow get: if isCollaborator(userId);
+        allow create: if isCollaborator(userId) && isValidGuest(incoming(), userId);
+        allow update: if isCollaborator(userId) && isValidGuest(incoming(), userId);
+        allow delete: if isCollaborator(userId);
       }
 
       match /categories/{categoryId} {
-        allow list: if isOwner(userId);
-        allow get: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidCategory(incoming());
-        allow update: if isOwner(userId) && isValidCategory(incoming()) && (
-          incoming().ownerId == existing().ownerId
-        );
-        allow delete: if isOwner(userId);
+        allow list: if isCollaborator(userId);
+        allow get: if isCollaborator(userId);
+        allow create: if isCollaborator(userId) && isValidCategory(incoming(), userId);
+        allow update: if isCollaborator(userId) && isValidCategory(incoming(), userId);
+        allow delete: if isCollaborator(userId);
       }
 
       match /settings/{settingId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidSettings(incoming());
-        allow update: if isOwner(userId) && isValidSettings(incoming()) && (
-          incoming().ownerId == existing().ownerId
-        );
+        allow get: if isCollaborator(userId);
+        allow list: if isCollaborator(userId);
+        allow create: if isCollaborator(userId) && isValidSettings(incoming(), userId);
+        allow update: if isCollaborator(userId) && isValidSettings(incoming(), userId);
         allow delete: if isOwner(userId);
       }
 
       match /logs/{logId} {
-        allow list: if isOwner(userId);
-        allow get: if isOwner(userId);
-        allow create: if isOwner(userId) && isValidLog(incoming());
+        allow list: if isCollaborator(userId);
+        allow get: if isCollaborator(userId);
+        allow create: if isCollaborator(userId) && isValidLog(incoming(), userId);
         allow delete: if isOwner(userId);
       }
     }

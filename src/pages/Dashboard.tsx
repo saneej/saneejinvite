@@ -362,7 +362,7 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
                   onClick={() => {
                     if ('serviceWorker' in navigator) {
                       navigator.serviceWorker.getRegistrations().then(regs => {
-                        for(let reg of regs) reg.unregister();
+                        for(const reg of regs) reg.unregister();
                         window.location.reload();
                       });
                     } else {

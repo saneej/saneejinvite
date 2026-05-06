@@ -12,12 +12,22 @@ export interface Guest {
   category: string;
   notes?: string;
   status: InvitationStatus;
+  suggestedBy?: string; // e.g. "Dad", "Mother", "Groom"
+  primaryCaller?: string; // Who is responsible for calling this guest
   createdAt: number;
 }
 
 export interface Category {
   id: string;
   name: string;
+}
+
+export interface Collaborator {
+  id: string;
+  email: string;
+  role: string;
+  name: string;
+  addedAt: number;
 }
 
 export interface WeddingSettings {
@@ -28,8 +38,6 @@ export interface WeddingSettings {
   whatsappTemplate: string;
   greetingMessage: string;
   invitationTone: string;
-  telegramBotToken?: string;
-  telegramEnabled: boolean;
 }
 
 export interface ActivityLog {
@@ -41,4 +49,4 @@ export interface ActivityLog {
   timestamp: number;
 }
 
-export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite' | 'logs';
+export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite' | 'logs' | 'onboarding';

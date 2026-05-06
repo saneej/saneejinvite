@@ -10,10 +10,24 @@
         "category": { "type": "string", "description": "Category name" },
         "notes": { "type": "string", "description": "Extra details" },
         "status": { "type": "string", "enum": ["Not Invited", "Invited", "Confirmed", "Not Coming"] },
+        "suggestedBy": { "type": "string", "description": "Name or Role of the person who suggested this guest (e.g., Dad, Groom)" },
+        "primaryCaller": { "type": "string", "description": "The family member responsible for personally inviting this guest" },
         "createdAt": { "type": "number", "description": "Timestamp" },
-        "ownerId": { "type": "string", "description": "User ID of the owner" }
+        "ownerId": { "type": "string", "description": "User ID of the wedding owner" }
       },
       "required": ["name", "category", "status", "createdAt", "ownerId"]
+    },
+    "Collaborator": {
+      "title": "Collaborator",
+      "description": "A family member or friend helping with the wedding",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "Email of the collaborator" },
+        "role": { "type": "string", "description": "Role (e.g. Father, Mother, Sibling)" },
+        "name": { "type": "string", "description": "Name of the collaborator" },
+        "addedAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["email", "role", "name", "addedAt"]
     },
     "Category": {
       "title": "Category",
@@ -37,11 +51,9 @@
         "whatsappTemplate": { "type": "string" },
         "greetingMessage": { "type": "string" },
         "invitationTone": { "type": "string" },
-        "telegramBotToken": { "type": "string" },
-        "telegramEnabled": { "type": "boolean" },
         "ownerId": { "type": "string" }
       },
-      "required": ["brideName", "groomName", "weddingDate", "venue", "whatsappTemplate", "greetingMessage", "invitationTone", "telegramEnabled", "ownerId"]
+      "required": ["brideName", "groomName", "weddingDate", "venue", "whatsappTemplate", "greetingMessage", "invitationTone", "ownerId"]
     }
   },
   "firestore": {
@@ -56,6 +68,10 @@
     "users/{userId}/settings/info": {
       "schema": "WeddingSettings",
       "description": "Wedding settings for a specific user"
+    },
+    "users/{userId}/collaborators/{collabId}": {
+      "schema": "Collaborator",
+      "description": "List of collaborators who can manage this wedding"
     }
   }
 }

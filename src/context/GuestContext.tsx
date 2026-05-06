@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useEffect, useState, useCallback } from 'react';
-import { Guest, Category, WeddingSettings, ActivityLog } from '../types';
+import { Guest, Category, WeddingSettings, ActivityLog, Collaborator } from '../types';
 import { 
   collection, 
   onSnapshot, 
@@ -65,6 +65,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 interface GuestContextType {
   guests: Guest[];
   categories: Category[];
+  collaborators: Collaborator[];
   settings: WeddingSettings;
   user: User | null;
   isLoading: boolean;
@@ -76,6 +77,9 @@ interface GuestContextType {
   updateCategory: (id: string, name: string) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   updateSettings: (settings: WeddingSettings) => Promise<void>;
+  addCollaborator: (email: string, name: string, role: string) => Promise<void>;
+  removeCollaborator: (id: string) => Promise<void>;
+  restoreBackup: (data: unknown) => Promise<void>;
   logs: ActivityLog[];
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -93,7 +97,6 @@ const defaultSettings: WeddingSettings = {
   whatsappTemplate: "Hello [Name]! We would love to have you at our wedding on [Date] at [Venue]. Please let us know if you can join us!",
   greetingMessage: "Assalamu alaikum [Name]!",
   invitationTone: "Warm, respectful, and traditional with a touch of elegance.",
-  telegramEnabled: false,
 };
 
 const GuestContext = createContext<GuestContextType | undefined>(undefined);
@@ -104,6 +107,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [settings, setSettings] = useState<WeddingSettings>(defaultSettings);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Validate Connection to Firestore
@@ -126,6 +130,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
       if (!u) {
         setGuests([]);
         setCategories([]);
+        setCollaborators([]);
         setIsLoading(false);
       }
     });
@@ -139,6 +144,8 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     const guestsRef = collection(userRef, 'guests');
     const categoriesRef = collection(userRef, 'categories');
     const settingsRef = doc(userRef, 'settings', 'info');
+    const collaboratorsRef = collection(userRef, 'collaborators');
+    const logsRef = collection(userRef, 'logs');
 
     // Subscribe to Guests
     const unsubGuests = onSnapshot(guestsRef, 
@@ -164,20 +171,10 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     const unsubCategories = onSnapshot(categoriesRef, 
       (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
-        
-        // Only seed if we are sure there is nothing and we haven't seeded yet this session
-        // Note: In a real app, you might want to store a 'hasBeenSeeded' flag in the user document
         setCategories(data);
       },
       (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/categories`)
     );
-
-    // Initial seed if truly empty (one-time check)
-    getDocFromServer(settingsRef).then(snap => {
-      // This is a simple heuristic: if settings exist but categories are empty, we might want to seed
-      // But actually, it's safer to just provide a 'Seed Defaults' action or only do it if the user is truly new.
-      // For now, let's keep it simple and just remove the aggressive re-seeding.
-    });
 
     // Subscribe to Settings
     const unsubSettings = onSnapshot(settingsRef, 
@@ -185,6 +182,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
         if (docSnap.exists()) {
           setSettings({ ...defaultSettings, ...docSnap.data() } as WeddingSettings);
         } else {
+          // New users might need a default set of setting values
           setDoc(settingsRef, { ...defaultSettings, ownerId: user.uid })
             .catch(e => handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/settings/info`));
         }
@@ -193,8 +191,16 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
       (error) => handleFirestoreError(error, OperationType.GET, `users/${user.uid}/settings/info`)
     );
 
+    // Subscribe to Collaborators
+    const unsubCollabs = onSnapshot(collaboratorsRef, 
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator));
+        setCollaborators(data);
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/collaborators`)
+    );
+
     // Subscribe to Logs
-    const logsRef = collection(userRef, 'logs');
     const unsubLogs = onSnapshot(logsRef, 
       (snapshot) => {
         const data = snapshot.docs.map(doc => {
@@ -204,8 +210,8 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
             ...d,
             timestamp: d.timestamp?.toMillis?.() || Date.now()
           } as ActivityLog;
-        }).sort((a, b) => b.timestamp - a.timestamp); // Sort by newest first here for UI
-        setLogs(data.slice(0, 100)); // Keep only last 100 logs for performance
+        }).sort((a, b) => b.timestamp - a.timestamp);
+        setLogs(data.slice(0, 100));
       },
       (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/logs`)
     );
@@ -214,6 +220,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
       unsubGuests();
       unsubCategories();
       unsubSettings();
+      unsubCollabs();
       unsubLogs();
     };
   }, [user]);
@@ -374,6 +381,88 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const addCollaborator = useCallback(async (email: string, name: string, role: string) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'users', user.uid, 'collaborators', email.toLowerCase()), {
+        email: email.toLowerCase(),
+        name,
+        role,
+        addedAt: Date.now()
+      });
+      await logActivity('Added Collaborator', `Invited ${name} (${role}) to collaborate`, undefined, undefined);
+    } catch (e) {
+      console.error("Add collaborator failed", e);
+    }
+  }, [user, logActivity]);
+
+  const removeCollaborator = useCallback(async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'collaborators', id));
+      await logActivity('Removed Collaborator', `Removed a collaborator from the event`, undefined, undefined);
+    } catch (e) {
+      console.error("Remove collaborator failed", e);
+    }
+  }, [user, logActivity]);
+
+  const restoreBackup = useCallback(async (backupData: unknown) => {
+    if (!user || !backupData) return;
+    const isOldFormat = Array.isArray(backupData);
+    const data = isOldFormat 
+      ? { guests: backupData as Guest[], categories: [], settings: {} as WeddingSettings } 
+      : (backupData as { data: { guests: Guest[]; categories: Category[]; settings: WeddingSettings } }).data;
+    if (!data) return;
+
+    const { guests: backupGuests, categories: backupCategories, settings: backupSettings } = data;
+
+    try {
+      const batch = writeBatch(db);
+      const userRef = doc(db, 'users', user.uid);
+
+      // 1. Restore Categories (if provided)
+      if (Array.isArray(backupCategories)) {
+        const categoriesRef = collection(userRef, 'categories');
+        backupCategories.forEach((cat: Category) => {
+          // Check if category already exists by name to avoid duplicates
+          const exists = categories.some(c => c.name.toLowerCase() === cat.name.toLowerCase());
+          if (!exists) {
+            const newCatRef = doc(categoriesRef);
+            batch.set(newCatRef, { name: cat.name, ownerId: user.uid });
+          }
+        });
+      }
+
+      // 2. Restore Guests (if provided)
+      if (Array.isArray(backupGuests)) {
+        const guestsRef = collection(userRef, 'guests');
+        backupGuests.forEach((g: Guest) => {
+          const newGuestRef = doc(guestsRef);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id: _id, ...guestWithoutId } = g;
+          batch.set(newGuestRef, {
+            ...guestWithoutId,
+            ownerId: user.uid,
+            createdAt: g.createdAt || serverTimestamp()
+          });
+        });
+      }
+
+      await batch.commit();
+
+      // 3. Restore Settings (if provided)
+      if (backupSettings) {
+        const settingsRef = doc(userRef, 'settings', 'info');
+        await setDoc(settingsRef, { ...backupSettings, ownerId: user.uid });
+      }
+
+      await logActivity('Restored Backup', `Successfully restored data from backup file`, undefined, undefined);
+    } catch (e) {
+      console.error("Restore failed:", e);
+      throw e;
+    }
+  }, [user, categories, logActivity]);
+
   const login = useCallback(async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -385,9 +474,12 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
       
       // If user has no settings yet, it's a new user, let's seed categories
       if (!snap.exists()) {
+        const batch = writeBatch(db);
         defaultCategories.forEach(name => {
-          addDoc(categoriesRef, { name, ownerId: result.user.uid });
+          const newCatRef = doc(categoriesRef);
+          batch.set(newCatRef, { name, ownerId: result.user.uid });
         });
+        await batch.commit();
       }
     } catch (error) {
       const authError = error as { code?: string; message?: string };
@@ -407,6 +499,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({
     guests,
     categories,
+    collaborators,
     settings,
     user,
     isLoading,
@@ -418,10 +511,34 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     updateCategory,
     deleteCategory,
     updateSettings,
+    addCollaborator,
+    removeCollaborator,
+    restoreBackup,
     logs,
     login,
     logout,
-  }), [guests, categories, settings, user, isLoading, addGuest, bulkAddGuests, updateGuest, deleteGuest, addCategory, updateCategory, deleteCategory, updateSettings, logs, login, logout]);
+  }), [
+    guests, 
+    categories, 
+    collaborators, 
+    settings, 
+    user, 
+    isLoading, 
+    addGuest, 
+    bulkAddGuests, 
+    updateGuest, 
+    deleteGuest, 
+    addCategory, 
+    updateCategory, 
+    deleteCategory, 
+    updateSettings, 
+    addCollaborator, 
+    removeCollaborator, 
+    restoreBackup, 
+    logs, 
+    login, 
+    logout
+  ]);
 
   return <GuestContext.Provider value={value}>{children}</GuestContext.Provider>;
 }

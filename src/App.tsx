@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View } from './types';
 import { GuestProvider, useGuests } from './context/GuestContext';
 import { Sidebar, MobileNav } from './components/Navigation';
@@ -10,12 +10,16 @@ import { Settings } from './pages/Settings';
 import Invite from './pages/Invite';
 import { Logs } from './pages/Logs';
 import { WeddingAIBot } from './components/WeddingAIBot';
+import { Onboarding } from './components/Onboarding';
 import { AnimatePresence, motion } from 'motion/react';
 import { Heart, LogIn, Loader2 } from 'lucide-react';
 
 function AppContent() {
-  const { user, login, isLoading } = useGuests();
+  const { user, login, isLoading, settings } = useGuests();
   const [activeView, setActiveView] = useState<View>('dashboard');
+  
+  // Decide whether to show onboarding based on settings
+  const isNewUser = user && !isLoading && settings.brideName === 'Emma' && settings.groomName === 'James';
 
   if (isLoading) {
     return (
@@ -66,6 +70,7 @@ function AppContent() {
       case 'settings': return <Settings />;
       case 'invite': return <Invite />;
       case 'logs': return <Logs />;
+      case 'onboarding': return <Onboarding onComplete={() => { setActiveView('dashboard'); }} />;
       default: return <Dashboard onViewChange={setActiveView} />;
     }
   };
@@ -85,7 +90,11 @@ function AppContent() {
               transition={{ duration: 0.3 }}
               className="h-full"
             >
-              {renderView()}
+              {isNewUser ? (
+                <Onboarding onComplete={() => setActiveView('dashboard')} />
+              ) : (
+                renderView()
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

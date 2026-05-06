@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus, Guest, View } from '../types';
-import { Search, Edit2, Trash2, X, Users, ChevronDown, Check, PlusCircle, Sparkles, Wand2 } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Users, ChevronDown, Check, PlusCircle, Sparkles, Wand2, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -10,7 +10,7 @@ import { AIInvitationAssistant } from '../components/AIInvitationAssistant';
 import { suggestCategories } from '../services/aiService';
 
 export function GuestList({ onViewChange }: { onViewChange: (view: View) => void }) {
-  const { guests, categories, deleteGuest, updateGuest, bulkAddGuests, settings } = useGuests();
+  const { guests, categories, deleteGuest, updateGuest, bulkAddGuests, settings, addGuest } = useGuests();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -396,7 +396,16 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
                         {guest.status}
                       </div>
                     </div>
-                    <p className="text-[9px] uppercase tracking-wider text-natural-muted font-medium">{guest.category}</p>
+                    <p className="text-[9px] uppercase tracking-wider text-natural-muted font-medium flex gap-2">
+                      <span>{guest.category}</span>
+                      {(guest.suggestedBy || guest.primaryCaller) && (
+                        <span className="text-natural-olive/60">
+                          {guest.suggestedBy && `Suggested by ${guest.suggestedBy}`}
+                          {guest.suggestedBy && guest.primaryCaller && ' • '}
+                          {guest.primaryCaller && `Call: ${guest.primaryCaller}`}
+                        </span>
+                      )}
+                    </p>
                   </div>
 
                   <div className="hidden md:block text-[11px] text-natural-muted font-light truncate max-w-[150px]">

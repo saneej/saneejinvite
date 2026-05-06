@@ -12,11 +12,13 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
   const { addGuest, bulkAddGuests, guests, categories, settings } = useGuests();
   const [mode, setMode] = useState<EntryMode>('SINGLE');
   
-  // Single Mode State
+    // Single Mode State
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [category, setCategory] = useState(categories[0]?.name || '');
   const [notes, setNotes] = useState('');
+  const [suggestedBy, setSuggestedBy] = useState('');
+  const [primaryCaller, setPrimaryCaller] = useState('');
   const [status, setStatus] = useState<InvitationStatus>(InvitationStatus.NOT_INVITED);
   const [showPreview, setShowPreview] = useState(false);
   
@@ -151,6 +153,8 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
       phone,
       category,
       notes,
+      suggestedBy,
+      primaryCaller,
       status
     });
 
@@ -158,6 +162,8 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
     setName('');
     setPhone('');
     setNotes('');
+    setSuggestedBy('');
+    setPrimaryCaller('');
     setShowWarning(false);
     setIsWarningDismissed(false);
     setShowSuccess(true);
@@ -479,6 +485,29 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted italic">Suggested By (Role/Name)</label>
+            <input
+              type="text"
+              placeholder="e.g. Dad, Groom's Sister"
+              value={suggestedBy}
+              onChange={(e) => setSuggestedBy(e.target.value)}
+              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted italic">Primary Caller (Responsibility)</label>
+            <input
+              type="text"
+              placeholder="Who should invite this guest?"
+              value={primaryCaller}
+              onChange={(e) => setPrimaryCaller(e.target.value)}
+              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
+            />
           </div>
         </div>
 

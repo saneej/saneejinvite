@@ -1,25 +1,39 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
-import { Download, FileJson, FileSpreadsheet, Bot, Info, Copy, Check, MessageSquare } from 'lucide-react';
+import { 
+  Download, 
+  FileJson, 
+  FileSpreadsheet, 
+  Upload, 
+  AlertTriangle, 
+  Users, 
+  UserPlus, 
+  Trash2, 
+  Mail,
+  Check
+} from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../lib/utils';
 
 export function Settings() {
-  const { settings, updateSettings, guests, user } = useGuests();
+  const { 
+    settings, 
+    updateSettings, 
+    guests, 
+    categories, 
+    restoreBackup,
+    collaborators,
+    addCollaborator,
+    removeCollaborator 
+  } = useGuests();
   const [formData, setFormData] = useState(settings);
-  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [collabEmail, setCollabEmail] = useState('');
+  const [collabName, setCollabName] = useState('');
+  const [collabRole, setCollabRole] = useState('Family');
+  // ... rest of state
   const [isSaved, setIsSaved] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [showToken, setShowToken] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
-  const webhookUrl = `${window.location.origin}/api/telegram-webhook?ownerId=${user?.uid || ''}`;
-
-  const copyToClipboard = () => {
-    if (!webhookUrl || !user) return;
-    navigator.clipboard.writeText(webhookUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +69,78 @@ export function Settings() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleBackup = () => {
+    const backupData = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      data: {
+        guests,
+        categories,
+        settings
+      }
+    };
+    
+    const json = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `wedding_full_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+  };
+
+  const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm("Are you sure you want to restore data from this backup? This will add guests/categories and update your settings.")) {
+      e.target.value = '';
+      return;
+    }
+
+    setIsRestoring(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const content = event.target?.result as string;
+          const backupData = JSON.parse(content);
+          
+          if (!backupData.data) {
+            // Check if it's an old guest-only backup
+            if (Array.isArray(backupData)) {
+              await restoreBackup({ data: { guests: backupData } });
+            } else {
+              throw new Error("Invalid backup file format");
+            }
+          } else {
+            await restoreBackup(backupData);
+          }
+          
+          alert("Backup restored successfully!");
+          window.location.reload();
+        } catch (err) {
+          console.error("Restore error:", err);
+          alert("Failed to restore backup. Please ensure the file is a valid JSON backup.");
+        } finally {
+          setIsRestoring(false);
+        }
+      };
+      reader.readAsText(file);
+    } catch (err) {
+      console.error(err);
+      setIsRestoring(false);
+    }
+  };
+
+  const handleAddCollab = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!collabEmail || !collabName) return;
+    await addCollaborator(collabEmail, collabName, collabRole);
+    setCollabEmail('');
+    setCollabName('');
+    alert(`Invitation sent to ${collabEmail} (Note: They must sign in with this email)`);
   };
 
   return (
@@ -161,190 +247,108 @@ export function Settings() {
             >
               {isSaved ? 'Settings Saved' : 'Save All Changes'}
             </button>
+          </motion.form>
 
-            {/* Telegram Bot Integration - NOW INSIDE FORM */}
-            <div className="pt-8 border-t border-natural-border/50 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-50 p-2 rounded-xl">
-                  <Bot className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-serif font-bold text-natural-ink">Telegram Bot Integration</h3>
-                  <p className="text-[9px] text-natural-muted uppercase font-bold tracking-widest">Add guests via Telegram</p>
-                </div>
+          {/* Collaborators Management */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm space-y-8"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-natural-sidebar p-2 rounded-xl">
+                <Users className="w-5 h-5 text-natural-olive" />
               </div>
-
-              <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-2xl flex gap-4">
-                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                <div className="space-y-3">
-                  <p className="text-[12px] text-blue-900 leading-relaxed font-medium">
-                    To enable Telegram integration and add guests on the go:
-                  </p>
-                  <ul className="text-[11px] text-blue-800/80 space-y-2 list-decimal list-inside">
-                    <li>Open <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-blue-700 font-bold underline decoration-blue-300 underline-offset-2">@BotFather</a> on Telegram.</li>
-                    <li>Send <code className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-700 font-mono">/newbot</code> and follow instructions to get your <strong>API Token</strong>.</li>
-                    <li>Paste that token into the <strong>Bot Token</strong> field below and click <strong>Save All Changes</strong>.</li>
-                    <li>Click <strong>Activate Webhook</strong> below.</li>
-                    <li>Finally, click the <strong>Open Chat</strong> link and send <code className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-700 font-mono">/start</code> to initialize.</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Bot Token</label>
-                  <button 
-                    type="button"
-                    onClick={() => setShowToken(!showToken)}
-                    className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter hover:underline"
-                  >
-                    {showToken ? 'Hide' : 'Show Sensitive Token'}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input 
-                    type={showToken ? "text" : "password"} 
-                    value={formData.telegramBotToken || ''} 
-                    onChange={(e) => setFormData({...formData, telegramBotToken: e.target.value})}
-                    placeholder="e.g. 123456789:ABCdefGHIjkl..."
-                    className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none focus:border-natural-olive transition-all pr-12"
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
-                    <Bot className={cn("w-4 h-4 transition-colors", formData.telegramBotToken ? "text-blue-500" : "text-natural-border")} />
-                  </div>
-                </div>
-                <p className="text-[9px] text-natural-muted italic">This token grants access to your bot. Keep it secret.</p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Your Webhook URL</label>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    readOnly 
-                    value={webhookUrl}
-                    className="flex-1 bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-[10px] font-mono outline-none"
-                  />
-                  <button 
-                    type="button"
-                    onClick={copyToClipboard}
-                    className="px-4 bg-natural-sidebar border border-natural-border/50 rounded-xl hover:bg-natural-border/20 transition-all"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-natural-muted" />}
-                  </button>
-                </div>
-                <p className="text-[9px] text-natural-muted italic">This URL is unique to your account.</p>
-              </div>
-
-              {formData.telegramBotToken && (
-                <div className="pt-2 space-y-3">
-                  <button 
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        // First, save the current form data to ensure the server sees the latest token
-                        await updateSettings(formData);
-                        
-                        if (!user) throw new Error('Not authenticated');
-                        const idToken = await user.getIdToken();
-                        const res = await fetch('/api/setup-bot', {
-                          method: 'POST',
-                          headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${idToken}`
-                          },
-                          body: JSON.stringify({ ownerId: user.uid })
-                        });
-                        
-                        if (!res.ok) {
-                          const errorBody = await res.text();
-                          throw new Error(`HTTP ${res.status}: ${errorBody}`);
-                        }
-
-                        const data = await res.json();
-                        if (data.success) {
-                          if (data.botUsername) setBotUsername(data.botUsername);
-                          if (data.alreadySet) {
-                            alert('✅ Webhook is already correctly set up and active!');
-                          } else {
-                            alert('✅ Bot linked successfully! Click the link below to start chatting.');
-                          }
-                        } else {
-                          const errorMsg = data.result?.description || data.error || 'Unknown error';
-                          if (errorMsg.includes('Too Many Requests')) {
-                            alert('⚠️ Telegram Rate Limit: Please wait a minute before trying to reactivate again.');
-                          } else {
-                            alert('❌ Link failed: ' + errorMsg);
-                          }
-                        }
-                      } catch (err) {
-                        console.error('Setup Bot Error:', err);
-                        alert(`❌ Error connecting to server: ${err instanceof Error ? err.message : 'Unknown network error'}`);
-                      }
-                    }}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md"
-                  >
-                    Activate Webhook Now
-                  </button>
-
-                  {botUsername && (
-                    <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex flex-col items-center gap-3">
-                      <p className="text-[11px] text-emerald-800 font-bold">Step 5: Start your bot</p>
-                      <a 
-                        href={`https://t.me/${botUsername}?start=linked`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                        Open @{botUsername}
-                      </a>
-                      <p className="text-[9px] text-emerald-600 italic">Click the link then press START in Telegram</p>
-                    </div>
-                  )}
-                  {!settings.telegramBotToken && (
-                    <p className="text-[9px] text-blue-600 mt-2 font-medium">
-                      Note: You must click "Save All Changes" for the bot to start responding.
-                    </p>
-                  )}
-                  <div className="mt-4 pt-4 border-t border-natural-border/30">
-                    <a 
-                      href="/api/logs" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-[9px] text-natural-muted hover:text-natural-ink underline flex items-center gap-1"
-                    >
-                      View Server Debug Logs (Check for Linking Status)
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between p-4 bg-natural-sidebar/20 rounded-xl border border-natural-border/30">
-                <div>
-                  <p className="text-xs font-bold text-natural-ink">Enable Telegram Integration</p>
-                  <p className="text-[9px] text-natural-muted uppercase tracking-wider">Allow bot to add guests</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newSettings = { ...formData, telegramEnabled: !formData.telegramEnabled };
-                    setFormData(newSettings);
-                    updateSettings(newSettings);
-                  }}
-                  className={cn(
-                    "w-12 h-6 rounded-full p-1 transition-all",
-                    formData.telegramEnabled ? "bg-natural-olive" : "bg-natural-border"
-                  )}
-                >
-                  <div className={cn(
-                    "w-4 h-4 bg-white rounded-full transition-all shadow-sm",
-                    formData.telegramEnabled ? "translate-x-6" : "translate-x-0"
-                  )} />
-                </button>
+              <div>
+                <h3 className="text-lg font-serif font-bold text-natural-ink">Collaborators</h3>
+                <p className="text-[9px] text-natural-muted uppercase font-bold tracking-widest">Involve family in management</p>
               </div>
             </div>
-          </motion.form>
+
+            <form onSubmit={handleAddCollab} className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-natural-sidebar/20 p-6 rounded-2xl border border-natural-border/30">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-natural-muted">Name</label>
+                <div className="relative">
+                  <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-natural-muted" />
+                  <input 
+                    type="text"
+                    required
+                    value={collabName}
+                    onChange={(e) => setCollabName(e.target.value)}
+                    placeholder="e.g. Dad"
+                    className="w-full bg-white border border-natural-border/40 pl-9 pr-4 py-2.5 rounded-xl text-xs outline-none focus:border-natural-olive"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-natural-muted">Gmail Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-natural-muted" />
+                  <input 
+                    type="email"
+                    required
+                    value={collabEmail}
+                    onChange={(e) => setCollabEmail(e.target.value)}
+                    placeholder="gmail@example.com"
+                    className="w-full bg-white border border-natural-border/40 pl-9 pr-4 py-2.5 rounded-xl text-xs outline-none focus:border-natural-olive"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-natural-muted">Role</label>
+                <div className="flex gap-2">
+                  <select
+                    value={collabRole}
+                    onChange={(e) => setCollabRole(e.target.value)}
+                    className="flex-1 bg-white border border-natural-border/40 px-4 py-2.5 rounded-xl text-xs outline-none appearance-none cursor-pointer"
+                  >
+                    <option value="Family">Family</option>
+                    <option value="Editor">Editor</option>
+                    <option value="Viewer">Viewer</option>
+                  </select>
+                  <button 
+                    type="submit"
+                    className="bg-natural-olive text-white px-4 rounded-xl hover:bg-natural-ink transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <div className="space-y-3">
+              <h4 className="text-[10px] uppercase font-bold text-natural-muted px-1">Active Collaborators</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {collaborators.length === 0 ? (
+                  <p className="text-[11px] text-natural-muted font-medium py-8 text-center bg-natural-sidebar/10 rounded-xl border border-dashed border-natural-border/40 col-span-2">
+                    No collaborators added yet.
+                  </p>
+                ) : (
+                  collaborators.map(c => (
+                    <div key={c.id} className="flex items-center justify-between p-3 bg-white border border-natural-border/40 rounded-xl shadow-sm group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-natural-sidebar flex items-center justify-center text-natural-olive font-serif font-bold text-xs uppercase">
+                          {c.name[0]}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-natural-ink">{c.name}</p>
+                          <p className="text-[9px] text-natural-muted">{c.email} • {c.role}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          if (confirm(`Remove ${c.name}?`)) removeCollaborator(c.id);
+                        }}
+                        className="p-1.5 opacity-0 group-hover:opacity-100 text-natural-muted hover:text-rose-500 transition-all hover:bg-rose-50 rounded-lg"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         <div className="space-y-6">
@@ -364,22 +368,51 @@ export function Settings() {
               </button>
 
               <button 
-                onClick={() => {
-                  const json = JSON.stringify(guests, null, 2);
-                  const blob = new Blob([json], { type: 'application/json' });
-                  const link = document.createElement('a');
-                  link.href = URL.createObjectURL(blob);
-                  link.download = 'wedding_data_backup.json';
-                  link.click();
-                }}
+                onClick={handleBackup}
                 className="w-full flex items-center justify-between p-4 bg-natural-sidebar/30 border border-natural-border/50 rounded-xl hover:bg-natural-sidebar transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <FileJson className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-bold text-natural-ink">Backup JSON</span>
+                  <div className="text-left">
+                    <span className="text-xs font-bold text-natural-ink block">Full Backup (JSON)</span>
+                    <span className="text-[9px] text-natural-muted uppercase">Guests, Categories & Settings</span>
+                  </div>
                 </div>
                 <Download className="w-3 h-3 text-natural-muted" />
               </button>
+
+              <div className="relative">
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={handleRestore}
+                  accept=".json"
+                  className="hidden" 
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isRestoring}
+                  className="w-full flex items-center justify-between p-4 bg-natural-sidebar/30 border border-natural-border/50 rounded-xl hover:bg-natural-sidebar transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <Upload className="w-4 h-4 text-amber-600" />
+                    <div className="text-left">
+                      <span className="text-xs font-bold text-natural-ink block">
+                        {isRestoring ? 'Restoring...' : 'Restore Backup'}
+                      </span>
+                      <span className="text-[9px] text-natural-muted uppercase">Upload saved JSON file</span>
+                    </div>
+                  </div>
+                  <Check className="w-3 h-3 text-natural-muted opacity-0" />
+                </button>
+              </div>
+
+              <div className="p-4 bg-natural-sidebar/20 rounded-xl border border-natural-border/30 flex gap-3">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <p className="text-[10px] text-natural-muted leading-relaxed">
+                  Restoring will <span className="font-bold text-natural-ink">merge</span> guests and categories. New items will be added, but existing ones won't be deleted. Settings will be <span className="font-bold text-natural-ink">overwritten</span>.
+                </p>
+              </div>
             </div>
           </div>
         </div>
