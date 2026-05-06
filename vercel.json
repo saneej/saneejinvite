@@ -13,7 +13,6 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/server.ts" },
-    { "source": "/(.*)", "destination": "/dist/$1", "check": true },
     { "source": "/(.*)", "destination": "/server.ts" }
   ]
 }
