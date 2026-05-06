@@ -408,6 +408,129 @@ async function startServer() {
     }
   });
 
+  app.post("/api/setup-bot", async (req, res) => {
+    const { ownerId } = req.body;
+    if (!ownerId) return res.status(400).json({ error: "ownerId is required" });
+
+    try {
+      const settingsDoc = await getFirestore().collection("users").doc(ownerId).collection("config").doc("wedding").get();
+      const settings = settingsDoc.data();
+      const token = settings?.telegramToken || process.env.TELEGRAM_BOT_TOKEN;
+
+      if (!token) return res.status(400).json({ error: "No bot token found for this user." });
+
+      const rawHost = (req.headers["x-forwarded-host"] as string) || (req.headers["host"] as string);
+      const webhookUrl = `https://${rawHost}/api/telegram-webhook?ownerId=${ownerId}`;
+
+      logToFile(`>>> Linking Bot for ${ownerId} to: ${webhookUrl}`);
+      const telRes = await fetch(`https://api.telegram.org/bot${token.trim()}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=true`);
+      const data = await telRes.json();
+      
+      if (data.ok) {
+        const meRes = await fetch(`https://api.telegram.org/bot${token.trim()}/getMe`);
+        const meData = await meRes.json();
+        res.json({ success: true, botUsername: meData.result?.username });
+      } else {
+        res.status(400).json({ error: data.description });
+      }
+    } catch (err) {
+      logToFile(`!!! Setup Bot Error: ${err}`);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.get("/api/logs", async (req, res) => {
+    res.json({ status: "ok", message: "Logs are managed via Firestore." });
+  });
+
+  // --- AI Endpoints ---
+
+  app.post("/api/ai/chat", async (req, res) => {
+    const { query, guests, settings, history } = req.body;
+
+    const contextPrompt = `You are a helpful wedding planning assistant. 
+Current Wedding Details:
+- Couple: ${settings.brideName} & ${settings.groomName}
+- Date: ${settings.weddingDate}
+- Venue: ${settings.venue}
+
+Guest List Overview:
+- Total Guests: ${guests.length}
+
+Guest Data:
+${guests.map((g: { name: string; category: string; status: string }) => `- ${g.name} (${g.category}): Status: ${g.status}`).join('\n')}
+
+Using this data, answer the user's question or help them with their wedding planning.`;
+
+    try {
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const chat = model.startChat({
+        history: [
+          { role: 'user', parts: [{ text: contextPrompt }] },
+          { role: 'model', parts: [{ text: "Understood." }] },
+          ...(history || []).map((h: { role: string; text: string }) => ({
+            role: h.role === 'user' ? 'user' : 'model',
+            parts: [{ text: h.text }]
+          }))
+        ]
+      });
+
+      const result = await chat.sendMessage(query);
+      res.json({ text: result.response.text() });
+    } catch (error) {
+           console.error("AI Chat Error:", error);
+      res.status(500).json({ error: "AI processing failed" });
+    }
+  });
+
+  app.post("/api/ai/generate-invitation", async (req, res) => {
+    const { guestName, category, tone, weddingDate, weddingLocation } = req.body;
+    const prompt = `Write a wedding invitation message for ${guestName} (${category}). Date: ${weddingDate}, Venue: ${weddingLocation}. Tone: ${tone}.`;
+
+    try {
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(prompt);
+      res.json({ text: result.response.text() });
+    } catch (error) {
+      res.status(500).json({ error: "AI generation failed" });
+    }
+  });
+
+  app.post("/api/ai/suggest-categories", async (req, res) => {
+    const { names } = req.body;
+    const prompt = `Suggest categories for these guests: ${names.join(', ')}. Return JSON array of {name, category}.`;
+
+    try {
+      const model = ai.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      const result = await model.generateContent(prompt);
+      res.json(JSON.parse(result.response.text()));
+    } catch (error) {
+      res.status(500).json({ error: "AI categorization failed" });
+    }
+  });
+
+  app.post("/api/ai/extract-guests", async (req, res) => {
+    const { base64Data, mimeType } = req.body;
+    const prompt = "Extract names as JSON array of strings.";
+
+    try {
+      const model = ai.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      const result = await model.generateContent([
+        { inlineData: { data: base64Data, mimeType: mimeType } },
+        { text: prompt }
+      ]);
+      res.json(JSON.parse(result.response.text()));
+    } catch (error) {
+      res.status(500).json({ error: "AI extraction failed" });
+    }
+  });
+
   app.get("/api/telegram/set-webhook", async (req, res) => {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) return res.status(500).json({ error: "TELEGRAM_BOT_TOKEN not set" });
