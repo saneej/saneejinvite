@@ -62,17 +62,18 @@ async function startServer() {
 
   // Helper to send Telegram message
   async function sendTelegram(token: string, method: string, body: Record<string, unknown>) {
-    console.log(`>>> Sending Telegram [${method}] to chatId: ${body.chat_id}`);
+    logToFile(`>>> Sending Telegram [${method}] to chatId: ${body.chat_id}`);
     try {
-      const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+      const response = await fetch(`https://api.telegram.org/bot${token.trim()}/${method}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await response.json();
-      console.log(`>>> Telegram response:`, data);
+      logToFile(`>>> Telegram response for [${method}]: ${JSON.stringify(data)}`);
       return data;
     } catch (err) {
+      logToFile(`!!! Telegram [${method}] failed: ${err}`);
       console.error(`!!! Telegram [${method}] failed:`, err);
     }
   }
@@ -123,7 +124,10 @@ async function startServer() {
   async function getBotToken(ownerId: string, userToken?: string | null): Promise<string | null> {
     // 1. Try Cache
     let token = getCachedToken(ownerId);
-    if (token) return token;
+    if (token) {
+      logToFile(`>>> Bot token found in cache for ${ownerId}`);
+      return token.trim();
+    }
 
     // 2. Try Admin SDK
     if (db) {
@@ -131,8 +135,9 @@ async function startServer() {
         const snap = await db.collection("users").doc(ownerId).collection("settings").doc("info").get();
         token = snap.data()?.telegramBotToken;
         if (token) {
-          cacheToken(ownerId, token);
-          return token;
+          logToFile(`>>> Bot token retrieved via Admin SDK for ${ownerId}`);
+          cacheToken(ownerId, token.trim());
+          return token.trim();
         }
       } catch (err) {
         logToFile(`>>> Admin SDK getBotToken failed: ${err}`);
@@ -156,17 +161,19 @@ async function startServer() {
           const data = await res.json();
           token = data.fields?.telegramBotToken?.stringValue;
           if (token) {
-            cacheToken(ownerId, token);
-            return token;
+            logToFile(`>>> Bot token retrieved via REST API for ${ownerId}`);
+            cacheToken(ownerId, token.trim());
+            return token.trim();
           }
         } else {
-          logToFile(`>>> REST getBotToken failed: ${res.status} ${await res.text()}`);
+          logToFile(`>>> REST getBotToken failed for ${ownerId}: ${res.status} ${await res.text()}`);
         }
       } catch (e) {
-        logToFile(`>>> REST getBotToken error: ${e}`);
+        logToFile(`>>> REST getBotToken error for ${ownerId}: ${e}`);
       }
     }
 
+    logToFile(`!!! Bot token NOT FOUND for ${ownerId} in cache, Admin SDK, or REST API`);
     return null;
   }
 
@@ -389,7 +396,7 @@ async function startServer() {
       }
 
       logToFile(`>>> Activating webhook for token: ${token.substring(0, 5)}...`);
-      const telRes = await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
+      const telRes = await fetch(`https://api.telegram.org/bot${token.trim()}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=true`);
       const result = await telRes.json();
 
       logToFile(`>>> Telegram Setup Result: ${JSON.stringify(result)}`);

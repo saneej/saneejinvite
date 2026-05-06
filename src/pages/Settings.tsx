@@ -221,6 +221,9 @@ export function Settings() {
                     type="button"
                     onClick={async () => {
                       try {
+                        // First, save the current form data to ensure the server sees the latest token
+                        await updateSettings(formData);
+                        
                         const idToken = await auth.currentUser?.getIdToken();
                         const res = await fetch('/api/setup-bot', {
                           method: 'POST',
