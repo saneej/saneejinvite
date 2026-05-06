@@ -49,4 +49,18 @@ export interface ActivityLog {
   timestamp: number;
 }
 
-export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite' | 'logs' | 'onboarding';
+export interface SharedGuest {
+  name: string;
+  phone?: string;
+}
+
+export interface SharedList {
+  id: string;
+  categoryName: string;
+  guests: SharedGuest[];
+  shareContacts: boolean;
+  createdBy: string;
+  createdAt: number;
+}
+
+export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite' | 'logs' | 'onboarding' | 'shared' | 'category-detail';

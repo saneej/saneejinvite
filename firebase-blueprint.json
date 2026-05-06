@@ -54,9 +54,29 @@
         "ownerId": { "type": "string" }
       },
       "required": ["brideName", "groomName", "weddingDate", "venue", "whatsappTemplate", "greetingMessage", "invitationTone", "ownerId"]
+    },
+    "SharedList": {
+      "title": "Shared List",
+      "description": "A list of guests shared via link",
+      "type": "object",
+      "properties": {
+        "categoryName": { "type": "string" },
+        "guests": { 
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "shareContacts": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["categoryName", "guests", "shareContacts", "createdBy", "createdAt"]
     }
   },
   "firestore": {
+    "shared_lists/{sharedId}": {
+      "schema": "SharedList",
+      "description": "Publicly shared snapshots of guest lists"
+    },
     "users/{userId}/guests/{guestId}": {
       "schema": "Guest",
       "description": "Collection of guests for a specific user"

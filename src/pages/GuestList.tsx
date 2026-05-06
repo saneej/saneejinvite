@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus, Guest, View } from '../types';
-import { Search, Edit2, Trash2, X, Users, ChevronDown, Check, PlusCircle, Sparkles, Wand2, RefreshCw } from 'lucide-react';
+import { Search, Edit2, Trash2, X, Users, ChevronDown, Check, PlusCircle, Sparkles, Wand2, RefreshCw, UserPlus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import { AIInvitationAssistant } from '../components/AIInvitationAssistant';
 import { suggestCategories } from '../services/aiService';
+import { suggestGuestCategory } from '../services/geminiService';
 
 export function GuestList({ onViewChange }: { onViewChange: (view: View) => void }) {
   const { guests, categories, deleteGuest, updateGuest, bulkAddGuests, settings, addGuest } = useGuests();
@@ -26,6 +27,8 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
   const [bulkText, setBulkText] = useState('');
   const [bulkCategory, setBulkCategory] = useState('Uncategorized');
   const [isAutoCategorizing, setIsAutoCategorizing] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{ category: string, reasoning: string } | null>(null);
   const [aiGuest, setAiGuest] = useState<Guest | null>(null);
 
   const filteredGuests = guests.filter(guest => {
@@ -112,7 +115,8 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
     
     setIsAutoCategorizing(true);
     try {
-      const suggestions = await suggestCategories(names);
+      const categoryNames = categories.map(c => c.name);
+      const suggestions = await suggestCategories(names, categoryNames);
       // For simplicity, we'll just show the user and they can confirm, 
       // but here we will actually transform the bulk text into a more structured list 
       // if we wanted to. To keep it consistent with the UI, we'll just 
@@ -162,51 +166,81 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
     [InvitationStatus.NOT_COMING]: 'bg-rose-50 text-rose-700 border border-rose-100',
   };
 
+  const handleSuggestCategory = async () => {
+    if (!editingGuest?.name.trim()) return;
+    setIsSuggesting(true);
+    try {
+      const result = await suggestGuestCategory({
+        guestName: editingGuest.name,
+        notes: editingGuest.notes || '',
+        availableCategories: categories
+      });
+      if (result) {
+        setAiSuggestion({
+          category: result.suggestedCategory,
+          reasoning: result.reasoning
+        });
+      }
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const applyAiCategory = () => {
+    if (aiSuggestion && editingGuest) {
+      const updated = { ...editingGuest, category: aiSuggestion.category };
+      setEditingGuest(updated);
+      updateGuest(editingGuest.id, { category: aiSuggestion.category });
+      setAiSuggestion(null);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pt-4 border-b border-natural-border/50 pb-8">
-        <div className="flex items-center gap-4">
-          <div>
-            <h2 className="text-3xl font-serif font-bold text-natural-ink">Guest List</h2>
-            <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">
-              {filteredGuests.length} guests in your celebration circle
-            </p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-6 border-b border-natural-border/30 pb-10">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h2 className="text-4xl md:text-5xl font-serif font-bold text-natural-ink italic">Our Guests</h2>
           </div>
-          <ConnectionStatus />
+          <div className="flex items-center gap-4">
+            <p className="text-natural-muted text-[10px] uppercase tracking-[0.4em] font-bold opacity-60">
+              {filteredGuests.length} guests in list
+            </p>
+            {filteredGuests.length > 0 && (
+              <button
+                onClick={toggleSelectAll}
+                className="text-[10px] font-black uppercase tracking-[0.2em] text-natural-olive hover:text-natural-ink transition-colors flex items-center gap-2 px-3 py-1 bg-natural-sidebar/30 rounded-full border border-natural-border/20"
+              >
+                {selectedIds.length === filteredGuests.length ? 'Deselect All' : 'Select All'}
+              </button>
+            )}
+          </div>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
           <button
             onClick={() => setShowBulkAdd(true)}
-            className="px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100 text-[10px] font-bold text-emerald-700 uppercase tracking-widest hover:bg-emerald-100 transition-colors h-11 flex items-center gap-2"
+            className="px-6 py-3 bg-white text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em] rounded-2xl border border-emerald-100/50 shadow-sm hover:shadow-xl hover:bg-emerald-50 transition-all h-14 flex items-center justify-center gap-3 group"
           >
-            <PlusCircle className="w-4 h-4" />
+            <PlusCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
             Bulk Import
           </button>
           
-          {filteredGuests.length > 0 && (
-            <button
-              onClick={toggleSelectAll}
-              className="px-4 py-2 bg-natural-sidebar/50 rounded-xl border border-natural-border/30 text-[10px] font-bold text-natural-olive uppercase tracking-widest hover:bg-natural-sidebar transition-colors h-11"
-            >
-              {selectedIds.length === filteredGuests.length ? 'Deselect All' : 'Select All'}
-            </button>
-          )}
-          <div className="relative group flex-1 md:w-80">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted transition-colors group-focus-within:text-natural-olive" />
+          <div className="relative group w-full md:w-80">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-natural-muted transition-colors group-focus-within:text-natural-olive" />
             <input
               type="text"
-              placeholder="Search by name or phone..."
+              placeholder="Search by name or contact..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-natural-border px-10 py-2.5 rounded-xl text-xs outline-none focus:border-natural-olive transition-all h-11 shadow-sm"
+              className="w-full bg-white border border-natural-border px-14 py-4 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-natural-olive/5 focus:border-natural-olive transition-all h-14 shadow-sm"
             />
             {searchTerm && (
               <button 
                 onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-natural-muted hover:text-natural-olive transition-colors"
+                className="absolute right-5 top-1/2 -translate-y-1/2 p-1.5 text-natural-muted hover:text-rose-500 transition-colors"
               >
-                <X className="w-3 h-3" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -214,96 +248,104 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
       </header>
 
       {/* Quick Add Bar */}
-      <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-natural-border/30 shadow-sm flex gap-3">
+      <div className="relative group mx-auto max-w-3xl">
+        <div className="absolute inset-x-0 bottom-0 h-px bg-natural-olive/30 scale-x-0 group-focus-within:scale-x-100 transition-transform duration-700 origin-center" />
         <input 
           type="text"
-          placeholder="Quick add: Name, Category (optional)"
-          className="flex-1 bg-white border border-natural-border/50 px-4 py-2 rounded-xl text-xs outline-none focus:border-natural-olive transition-all h-10"
+          placeholder="Add Guest: Name, Category (optional)"
+          className="w-full bg-natural-sidebar/30 border border-natural-border/40 px-8 py-5 rounded-[2rem] text-sm md:text-base italic font-serif outline-none focus:bg-white focus:shadow-2xl transition-all h-16 text-natural-ink"
           onKeyDown={async (e) => {
             if (e.key === 'Enter') {
               const val = e.currentTarget.value.trim();
               if (!val) return;
-              
               const parts = val.split(',').map(p => p.trim());
               const name = parts[0];
-              const category = parts[1] || 'Uncategorized';
-              
-              await addGuest({
-                name,
-                category,
-                status: InvitationStatus.NOT_INVITED,
-                phone: '',
-                notes: 'Quick added'
-              });
-              
+              const category = parts[1] || 'General';
+              await addGuest({ name, category, status: InvitationStatus.NOT_INVITED, phone: '', notes: 'Quick added' });
               e.currentTarget.value = '';
             }
           }}
         />
-        <div className="text-[9px] text-natural-muted flex items-center px-2 italic">
-          Press Enter to add
+        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[9px] font-bold uppercase tracking-widest text-natural-muted/60 bg-white px-3 py-1 rounded-full border border-natural-border/40">
+          Enter to add
         </div>
       </div>
 
       {/* Enhanced Filter Bar */}
-      <div className="bg-white/50 backdrop-blur-sm p-6 rounded-[2rem] border border-natural-border/30 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-olive flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-natural-olive" />
-            Quick Filters
-          </p>
-          {(searchTerm || filterCategory !== 'All' || filterStatus !== 'All' || startDate || endDate) && (
-            <button 
-              onClick={clearFilters}
-              className="text-[9px] uppercase tracking-widest font-bold text-rose-500 hover:text-rose-600 transition-colors"
-            >
-              Clear All Filters
-            </button>
-          )}
+      <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[3rem] border border-natural-border/30 shadow-xl shadow-natural-olive/5 space-y-8">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-natural-olive/10 flex items-center justify-center">
+              <ChevronDown className="w-4 h-4 text-natural-olive" />
+            </div>
+            <p className="text-[11px] uppercase tracking-[0.3em] font-bold text-natural-ink">
+              Fine-tune Selection
+            </p>
+          </div>
+          <AnimatePresence>
+            {(searchTerm || filterCategory !== 'All' || filterStatus !== 'All' || startDate || endDate || filterHasPhone || filterHasNotes) && (
+              <motion.button 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                onClick={clearFilters}
+                className="text-[10px] uppercase tracking-widest font-bold text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-2"
+              >
+                Reset Filters
+                <X className="w-3 h-3" />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-[9px] uppercase tracking-widest font-bold text-natural-muted ml-1">Category</label>
-            <select 
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-ink uppercase tracking-widest outline-none cursor-pointer hover:border-natural-olive transition-colors h-11"
-            >
-              <option value="All">All Categories</option>
-              {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-            </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">Category</label>
+            <div className="relative group">
+              <select 
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="custom-select w-full h-14 appearance-none pr-12 uppercase font-black text-[10px] tracking-widest text-natural-ink italic"
+              >
+                <option value="All">All Categories</option>
+                {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+              </select>
+              <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-olive pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[9px] uppercase tracking-widest font-bold text-natural-muted ml-1">Invitation Status</label>
-            <select 
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-ink uppercase tracking-widest outline-none cursor-pointer hover:border-natural-olive transition-colors h-11"
-            >
-              <option value="All">All Statuses</option>
-              {Object.values(InvitationStatus).map(status => <option key={status} value={status}>{status}</option>)}
-            </select>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">Status</label>
+            <div className="relative group">
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="custom-select w-full h-14 appearance-none pr-12 uppercase font-black text-[10px] tracking-widest text-natural-ink italic"
+              >
+                <option value="All">All Statuses</option>
+                {Object.values(InvitationStatus).map(status => <option key={status} value={status}>{status}</option>)}
+              </select>
+              <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-olive pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[9px] uppercase tracking-widest font-bold text-natural-muted ml-1">Added From</label>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">From</label>
             <input 
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-ink uppercase tracking-widest outline-none cursor-pointer hover:border-natural-olive transition-colors h-11"
+              className="w-full bg-natural-sidebar/40 border border-natural-border/40 px-6 py-4 rounded-2xl text-[10px] font-bold text-natural-ink uppercase tracking-widest outline-none cursor-pointer hover:border-natural-olive transition-all h-14"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[9px] uppercase tracking-widest font-bold text-natural-muted ml-1">Added To</label>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">To</label>
             <input 
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-white border border-natural-border px-4 py-2.5 rounded-xl text-[10px] font-bold text-natural-ink uppercase tracking-widest outline-none cursor-pointer hover:border-natural-olive transition-colors h-11"
+              className="w-full bg-natural-sidebar/40 border border-natural-border/40 px-6 py-4 rounded-2xl text-[10px] font-bold text-natural-ink uppercase tracking-widest outline-none cursor-pointer hover:border-natural-olive transition-all h-14"
             />
           </div>
         </div>
@@ -312,27 +354,41 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
           <button
             onClick={() => setFilterHasPhone(!filterHasPhone)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all border",
+              "flex items-center gap-3 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border shadow-sm",
               filterHasPhone 
-                ? "bg-natural-olive text-white border-natural-olive shadow-md" 
-                : "bg-white text-natural-muted border-natural-border/30 hover:border-natural-olive"
+                ? "bg-natural-olive text-white border-natural-olive shadow-xl shadow-natural-olive/20" 
+                : "bg-natural-sidebar/50 text-natural-muted border-natural-border/40 hover:border-natural-olive/40"
             )}
           >
-            <Check className={cn("w-3 h-3 transition-all", filterHasPhone ? "scale-100" : "scale-0 w-0")} />
-            Has Phone Number
+            <div 
+              className={cn(
+                "custom-checkbox transition-all", 
+                filterHasPhone ? "active" : "bg-white"
+              )}
+            >
+              <Check className={cn("w-3 h-3 transition-transform", filterHasPhone ? "scale-100 text-white" : "scale-0")} />
+            </div>
+            Has Contact
           </button>
 
           <button
             onClick={() => setFilterHasNotes(!filterHasNotes)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all border",
+              "flex items-center gap-3 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border shadow-sm",
               filterHasNotes 
-                ? "bg-natural-olive text-white border-natural-olive shadow-md" 
-                : "bg-white text-natural-muted border-natural-border/30 hover:border-natural-olive"
+                ? "bg-natural-olive text-white border-natural-olive shadow-xl shadow-natural-olive/20" 
+                : "bg-natural-sidebar/50 text-natural-muted border-natural-border/40 hover:border-natural-olive/40"
             )}
           >
-            <Check className={cn("w-3 h-3 transition-all", filterHasNotes ? "scale-100" : "scale-0 w-0")} />
-            Has Notes
+            <div 
+              className={cn(
+                "custom-checkbox transition-all", 
+                filterHasNotes ? "active" : "bg-white"
+              )}
+            >
+              <Check className={cn("w-3 h-3 transition-transform", filterHasNotes ? "scale-100 text-white" : "scale-0")} />
+            </div>
+            Has Internal Notes
           </button>
         </div>
       </div>
@@ -344,18 +400,18 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
           className="h-96 flex flex-col items-center justify-center text-natural-muted gap-6 bg-white rounded-[2rem] border-dashed border-2 border-natural-border m-4 p-8 text-center"
         >
           <div className="w-20 h-20 bg-natural-sidebar rounded-full flex items-center justify-center">
-            <Users className="w-8 h-8 opacity-20" />
+            <UserPlus className="w-8 h-8 opacity-20" />
           </div>
           <div className="max-w-xs space-y-2">
             <p className="font-serif italic text-xl text-natural-ink">
               {searchTerm || filterCategory !== 'All' || filterStatus !== 'All' 
-                ? 'Hmm, no one matches those criteria.' 
-                : 'Your guest list is currently empty.'}
+                ? 'No one matches your search.' 
+                : 'Your guest list is empty.'}
             </p>
             <p className="text-[10px] uppercase tracking-widest leading-relaxed">
               {searchTerm || filterCategory !== 'All' || filterStatus !== 'All'
-                ? 'Try adjusting your filters or search terms.'
-                : 'Start by adding your first guest to begin your journey.'}
+                ? 'Try searching for someone else.'
+                : 'Start by adding your first guest below.'}
             </p>
           </div>
           
@@ -370,138 +426,170 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
           )}
         </motion.div>
       ) : (
-        <div className="space-y-3 relative">
+        <motion.div 
+          initial="hidden"
+          animate="show"
+          variants={{
+            show: {
+              transition: {
+                staggerChildren: 0.05
+              }
+            }
+          }}
+          className="space-y-3 relative"
+        >
           <AnimatePresence mode="popLayout">
-            {filteredGuests.map((guest) => (
+            {filteredGuests.map((guest, idx) => (
               <motion.div
                 layout
                 key={guest.id}
-                className="group"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.03 }}
+                className="group relative"
               >
                 <div className={cn(
-                  "p-4 rounded-xl border transition-all flex items-center gap-4 bg-white",
-                  selectedIds.includes(guest.id) ? "border-natural-olive ring-1 ring-natural-olive/20" : "border-natural-border/30 hover:border-natural-olive/20"
+                  "p-5 md:p-6 rounded-[2rem] border transition-all flex items-center gap-4 md:gap-8 bg-white shadow-sm hover:shadow-2xl hover:shadow-natural-olive/5 relative z-0 overflow-hidden",
+                  selectedIds.includes(guest.id) ? "border-natural-olive ring-1 ring-natural-olive/10" : "border-natural-border/30"
                 )}>
-                  <input 
-                    type="checkbox" 
-                    className="w-4 h-4 rounded border-natural-border text-natural-olive focus:ring-0 cursor-pointer flex-shrink-0"
-                    checked={selectedIds.includes(guest.id)}
-                    onChange={() => toggleSelection(guest.id)}
-                  />
+                  {/* Subtle Background Pattern */}
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-natural-olive/5 rounded-bl-full -mr-12 -mt-12 group-hover:scale-125 transition-transform duration-700 pointer-events-none opacity-0 group-hover:opacity-100" />
+
+                  <div className="relative">
+                    <div 
+                      onClick={() => toggleSelection(guest.id)}
+                      className={cn(
+                        "custom-checkbox transition-all scale-110",
+                        selectedIds.includes(guest.id) ? "active" : "bg-natural-sidebar"
+                      )}
+                    >
+                      <Check className={cn("w-3 h-3 transition-transform", selectedIds.includes(guest.id) ? "scale-100 text-white" : "scale-0")} />
+                    </div>
+                  </div>
                   
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <h4 className="text-sm font-serif font-bold text-natural-ink truncate">{guest.name}</h4>
-                      <div className={cn("px-1.5 py-0.5 rounded text-[7px] uppercase font-bold tracking-tight whitespace-nowrap", statusColors[guest.status])}>
+                  <div className="flex-1 min-w-0 py-1">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                      <h4 className="text-lg md:text-xl font-serif font-bold text-natural-ink truncate italic">{guest.name}</h4>
+                      <div className={cn(
+                        "px-3 py-1 rounded-full text-[8px] uppercase font-black tracking-widest shadow-sm",
+                        statusColors[guest.status]
+                      )}>
                         {guest.status}
                       </div>
                     </div>
-                    <p className="text-[9px] uppercase tracking-wider text-natural-muted font-medium flex gap-2">
-                      <span>{guest.category}</span>
+                    <div className="flex items-center gap-3 mt-3">
+                      <div className="flex items-center gap-1.5 bg-natural-sidebar/50 px-3 py-1 rounded-full border border-natural-border/20">
+                        <Users className="w-3 h-3 text-natural-olive/60" />
+                        <p className="text-[9px] uppercase tracking-widest text-natural-muted font-bold">
+                          {guest.category}
+                        </p>
+                      </div>
+                      
                       {(guest.suggestedBy || guest.primaryCaller) && (
-                        <span className="text-natural-olive/60">
-                          {guest.suggestedBy && `Suggested by ${guest.suggestedBy}`}
-                          {guest.suggestedBy && guest.primaryCaller && ' • '}
-                          {guest.primaryCaller && `Call: ${guest.primaryCaller}`}
-                        </span>
+                        <div className="hidden sm:flex items-center gap-3 text-[8px] font-bold uppercase tracking-widest text-natural-olive/60 italic overflow-hidden">
+                          {guest.suggestedBy && (
+                            <span className="flex items-center gap-1.5">
+                              <div className="w-1 h-1 rounded-full bg-natural-olive/30" />
+                              By {guest.suggestedBy}
+                            </span>
+                          )}
+                          {guest.primaryCaller && (
+                            <span className="flex items-center gap-1.5">
+                              <div className="w-1 h-1 rounded-full bg-natural-olive/30" />
+                              {guest.primaryCaller} to Call
+                            </span>
+                          )}
+                        </div>
                       )}
-                    </p>
+                    </div>
                   </div>
 
-                  <div className="hidden md:block text-[11px] text-natural-muted font-light truncate max-w-[150px]">
-                    {guest.phone || (guest.notes && `"${guest.notes.substring(0, 20)}..."`)}
-                  </div>
-
-                    <div className="flex items-center gap-1">
-                      {guest.phone && !deleteId && (
-                          <div className="flex bg-natural-sidebar/50 rounded-lg border border-natural-border/30 overflow-hidden shadow-sm">
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="hidden lg:flex items-center gap-4 border-l border-natural-border/20 pl-8">
+                      {guest.phone ? (
+                        <div className="flex items-center gap-3">
+                          <div className="flex bg-natural-sidebar rounded-2xl p-1 shadow-inner">
                             <a
                               href={getWhatsAppLink(guest, 'greeting') || '#'}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-3 py-1.5 text-[8px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive hover:text-white transition-all border-r border-natural-border/20 flex flex-col items-center justify-center min-w-[50px] leading-none"
-                              title="Send Greeting first"
+                              className="px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-natural-olive hover:bg-white hover:shadow-sm rounded-xl transition-all"
                             >
-                              <span className="opacity-60 mb-0.5">1.</span>
                               Greet
                             </a>
                             <a
                               href={getWhatsAppLink(guest, 'invitation') || '#'}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={() => {
-                                if (guest.status === InvitationStatus.NOT_INVITED) {
-                                  updateGuest(guest.id, { status: InvitationStatus.INVITED });
-                                }
-                              }}
-                              className="px-3 py-1.5 text-[8px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive hover:text-white transition-all flex flex-col items-center justify-center min-w-[50px] leading-none"
-                              title="Send Invitation"
+                              className="px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-natural-olive hover:bg-white hover:shadow-sm rounded-xl transition-all"
                             >
-                              <span className="opacity-60 mb-0.5">2.</span>
                               Invite
                             </a>
-                            <button
-                              onClick={() => setAiGuest(guest)}
-                              className="px-2.5 py-1.5 bg-natural-olive text-white hover:bg-natural-ink transition-all flex items-center justify-center border-l border-white/10"
-                              title="Let AI write the message"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                            </button>
                           </div>
+                          <motion.button
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setAiGuest(guest)}
+                            className="w-10 h-10 bg-natural-olive text-white rounded-2xl flex items-center justify-center shadow-lg shadow-natural-olive/20 hover:bg-natural-ink transition-all"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                          </motion.button>
+                        </div>
+                      ) : (
+                        <p className="text-[8px] uppercase tracking-widest font-black text-natural-muted px-4 opacity-30 italic">No contact info</p>
                       )}
                     </div>
 
-                      {deleteId === guest.id ? (
-                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-1">
-                          <button 
-                            onClick={() => {
-                              deleteGuest(guest.id);
-                              setDeleteId(null);
-                            }}
-                            className="bg-rose-500 text-white px-2.5 py-1 rounded-lg text-[8px] font-bold uppercase tracking-widest"
-                          >
-                            Confirm
-                          </button>
-                          <button 
-                            onClick={() => setDeleteId(null)}
-                            className="p-1.5 text-natural-muted hover:bg-natural-sidebar rounded-lg"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => {
-                              setDeleteId(null);
-                              setEditingGuest(guest);
-                            }}
-                            className="p-1.5 text-natural-muted hover:text-natural-olive transition-colors sm:block hidden"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          
-                          <div className="relative group/more sm:hidden">
-                             <button className="p-1.5 text-natural-muted uppercase text-[9px] font-bold tracking-widest">More</button>
-                             <div className="absolute right-0 bottom-full mb-2 bg-white border border-natural-border rounded-lg shadow-xl hidden group-hover/more:block p-1 min-w-[100px] z-10">
-                                <button onClick={() => setEditingGuest(guest)} className="w-full text-left p-2 text-natural-muted hover:text-natural-olive flex items-center gap-2 text-[10px] uppercase font-bold"><Edit2 className="w-3 h-3" /> Edit</button>
-                                <button onClick={() => setDeleteId(guest.id)} className="w-full text-left p-2 text-rose-500 hover:bg-rose-50 flex items-center gap-2 text-[10px] uppercase font-bold"><Trash2 className="w-3 h-3" /> Delete</button>
-                             </div>
-                          </div>
-      
-                          <button
-                            onClick={() => setDeleteId(guest.id)}
-                            className="p-1.5 text-natural-muted hover:text-rose-500 transition-colors hidden sm:block"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingGuest(guest)}
+                        className="w-10 h-10 flex items-center justify-center text-natural-muted hover:text-natural-olive hover:bg-natural-sidebar rounded-2xl transition-all"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(guest.id)}
+                        className="w-10 h-10 flex items-center justify-center text-natural-muted hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
+
+                <AnimatePresence>
+                  {deleteId === guest.id && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className="absolute inset-0 z-20 bg-rose-50/95 backdrop-blur-sm rounded-[2rem] flex items-center justify-center gap-6 border-2 border-rose-100"
+                    >
+                      <p className="text-xs font-bold uppercase tracking-widest text-rose-600">Permanently remove {guest.name}?</p>
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => {
+                            deleteGuest(guest.id);
+                            setDeleteId(null);
+                          }}
+                          className="bg-rose-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl shadow-rose-500/20 hover:bg-rose-700 transition-colors"
+                        >
+                          Delete
+                        </button>
+                        <button 
+                          onClick={() => setDeleteId(null)}
+                          className="bg-white border border-rose-200 text-rose-600 px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             ))}
           </AnimatePresence>
-        </div>
+        </motion.div>
       )}
 
       {/* Bulk Add Modal */}
@@ -626,48 +714,49 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-24 sm:bottom-8 left-1/2 -translate-x-1/2 z-[80] w-[calc(100%-2rem)] max-w-2xl"
+            className="fixed bottom-24 sm:bottom-12 left-1/2 -translate-x-1/2 z-[80] w-[calc(100%-4rem)] max-w-3xl"
           >
-            <div className="bg-natural-ink text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between border border-white/10 backdrop-blur-lg">
-              <div className="flex items-center gap-4">
+            <div className="bg-natural-ink/95 backdrop-blur-2xl text-white p-6 rounded-[2.5rem] shadow-[0_30px_60px_-15px_rgba(30,48,34,0.5)] flex flex-col md:flex-row items-center justify-between gap-6 border border-white/10 ring-1 ring-white/5">
+              <div className="flex items-center gap-6">
                 <button 
                   onClick={() => setSelectedIds([])}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  className="w-12 h-12 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-2xl transition-all group"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5 group-hover:scale-110" />
                 </button>
                 <div>
-                  <p className="text-xs font-bold">{selectedIds.length} Selected</p>
-                  <p className="text-[9px] text-white/50 uppercase tracking-widest leading-none mt-0.5">Bulk Actions</p>
+                  <p className="text-2xl font-serif italic text-emerald-400 leading-none">{selectedIds.length} <span className="text-white">Selected</span></p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] font-black mt-2">Manage multiple guests</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="relative">
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="relative group flex-1 md:flex-initial">
                   <button 
                     onClick={() => setShowBulkMenu(!showBulkMenu)}
-                    className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-colors"
+                    className="w-full md:w-auto bg-white/10 hover:bg-white/20 px-8 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-4 transition-all h-14 border border-white/5"
                   >
-                    Update Status
-                    <ChevronDown className={cn("w-3 h-3 transition-transform", showBulkMenu && "rotate-180")} />
+                    Change Status
+                    <ChevronDown className={cn("w-4 h-4 transition-transform duration-500", showBulkMenu && "rotate-180")} />
                   </button>
 
                   <AnimatePresence>
                     {showBulkMenu && (
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: -10 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-xl shadow-2xl border border-natural-border overflow-hidden p-1"
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: -10, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute bottom-full right-0 mb-4 w-64 bg-white rounded-[2rem] shadow-2xl border border-natural-border overflow-hidden p-3"
                       >
+                        <p className="text-[9px] uppercase tracking-widest font-black text-natural-muted px-4 py-3 opacity-40">Choose New Status</p>
                         {Object.values(InvitationStatus).map((status) => (
                           <button
                             key={status}
                             onClick={() => handleBulkStatusUpdate(status)}
-                            className="w-full text-left px-3 py-2 text-[10px] uppercase tracking-widest font-bold text-natural-ink hover:bg-natural-sidebar rounded-lg transition-colors flex items-center justify-between group"
+                            className="w-full text-left px-4 py-3.5 text-[11px] uppercase tracking-widest font-bold text-natural-ink hover:bg-natural-sidebar rounded-xl transition-all flex items-center justify-between group"
                           >
                             {status}
-                            <Check className="w-3 h-3 opacity-0 group-hover:opacity-100 text-natural-olive" />
+                            <div className="w-2 h-2 rounded-full bg-natural-olive opacity-0 group-hover:opacity-100 transition-all" />
                           </button>
                         ))}
                       </motion.div>
@@ -677,10 +766,10 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
 
                 <button 
                   onClick={handleBulkDelete}
-                  className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
+                  className="w-14 h-14 flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white rounded-2xl transition-all border border-rose-500/20 group"
                   title="Delete Selected"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                 </button>
               </div>
             </div>
@@ -691,112 +780,189 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
       {/* Modern Edit Modal */}
       <AnimatePresence>
         {editingGuest && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 shrink-0">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-natural-ink/80 backdrop-blur-md" 
+              className="absolute inset-0 bg-natural-ink/90 backdrop-blur-sm" 
               onClick={() => setEditingGuest(null)} 
             />
             
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 40 }}
-              className="bg-white/90 backdrop-blur-2xl w-full max-w-lg rounded-[3rem] p-10 relative shadow-[0_20px_100px_rgba(0,0,0,0.3)] border border-white/20"
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              className="bg-white w-full max-w-2xl rounded-[3rem] p-8 md:p-12 relative shadow-[0_40px_100px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[90vh]"
             >
               <button 
                 onClick={() => setEditingGuest(null)} 
-                className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center bg-natural-sidebar rounded-2xl text-natural-muted hover:text-natural-ink hover:bg-natural-border transition-all"
+                className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center bg-natural-sidebar hover:bg-natural-border rounded-full text-natural-muted hover:text-natural-ink transition-all z-10"
               >
                 <X className="w-5 h-5" />
               </button>
               
-              <div className="mb-10">
-                 <div className="w-16 h-16 bg-natural-olive/10 text-natural-olive rounded-2xl flex items-center justify-center mb-6">
-                    <Edit2 className="w-8 h-8" />
-                 </div>
-                 <h3 className="text-3xl font-serif font-bold text-natural-olive">Edit Guest Profile</h3>
-                 <p className="text-natural-muted text-sm mt-1 uppercase tracking-widest font-bold">Keeping your list perfect</p>
+              <div className="mb-12 relative">
+                <div className="w-20 h-20 bg-natural-olive/10 text-natural-olive rounded-[2rem] flex items-center justify-center mb-8">
+                  <UserPlus className="w-10 h-10" />
+                </div>
+                <h3 className="text-4xl font-serif font-black text-natural-olive italic">Guest Info</h3>
+                <p className="text-natural-muted text-[10px] mt-2 uppercase tracking-[0.4em] font-black opacity-60">Update guest details</p>
+                
+                <div className="absolute top-0 right-0 hidden sm:block">
+                  <div className="text-[10px] font-black text-natural-muted/20 uppercase tracking-[0.5em] rotate-90 origin-right translate-y-12 translate-x-4 select-none">
+                    Wedding Planner
+                  </div>
+                </div>
               </div>
               
-              <form className="space-y-6" onSubmit={(e) => {
+              <form className="space-y-10" onSubmit={(e) => {
                 e.preventDefault();
                 setEditingGuest(null);
               }}>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold text-natural-muted tracking-widest ml-1">Full Name</label>
-                  <input 
-                    type="text" 
-                    value={editingGuest.name} 
-                    onChange={(e) => setEditingGuest({...editingGuest, name: e.target.value})}
-                    className="input-natural"
-                    onBlur={() => updateGuest(editingGuest.id, { name: editingGuest.name })}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold text-natural-muted tracking-widest ml-1">Category</label>
-                    <select 
-                       value={editingGuest.category} 
-                       onChange={(e) => {
-                         const cat = e.target.value;
-                         setEditingGuest({...editingGuest, category: cat});
-                         updateGuest(editingGuest.id, { category: cat });
-                       }}
-                       className="input-natural appearance-none cursor-pointer"
-                    >
-                      {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-4">
+                    <label className="text-[10px] uppercase font-black text-natural-muted tracking-[0.3em] ml-2">Guest Identity</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={editingGuest.name} 
+                        onChange={(e) => setEditingGuest({...editingGuest, name: e.target.value})}
+                        className="w-full bg-natural-sidebar/30 border border-natural-border/30 px-6 py-4 rounded-2xl text-base font-serif italic outline-none focus:bg-white focus:border-natural-olive transition-all h-14"
+                        onBlur={() => updateGuest(editingGuest.id, { name: editingGuest.name })}
+                        placeholder="e.g. Johnathan Doe"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold text-natural-muted tracking-widest ml-1">Invitation Status</label>
-                    <select 
-                       value={editingGuest.status} 
-                       onChange={(e) => {
-                         const status = e.target.value as InvitationStatus;
-                         setEditingGuest({...editingGuest, status});
-                         updateGuest(editingGuest.id, { status });
-                       }}
-                       className="input-natural appearance-none cursor-pointer"
-                    >
-                      {Object.values(InvitationStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-end mb-1 px-2">
+                      <label className="text-[10px] uppercase font-black text-natural-muted tracking-[0.3em]">Circle / Category</label>
+                      <button
+                        type="button"
+                        onClick={handleSuggestCategory}
+                        disabled={isSuggesting}
+                        className="text-[10px] font-black uppercase tracking-widest text-natural-olive flex items-center gap-2 hover:opacity-70 transition-opacity disabled:opacity-50"
+                      >
+                        {isSuggesting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        AI Hint
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <select 
+                         value={editingGuest.category} 
+                         onChange={(e) => {
+                           const cat = e.target.value;
+                           setEditingGuest({...editingGuest, category: cat});
+                           updateGuest(editingGuest.id, { category: cat });
+                           setAiSuggestion(null);
+                         }}
+                         className="w-full bg-natural-sidebar/30 border border-natural-border/30 px-6 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-widest outline-none cursor-pointer hover:border-natural-olive transition-all h-14 appearance-none"
+                      >
+                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted pointer-events-none" />
+                      
+                      <AnimatePresence>
+                        {aiSuggestion && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute z-20 left-0 right-0 top-full mt-4 bg-white border border-natural-olive/20 shadow-2xl rounded-[2.5rem] p-8 space-y-6"
+                          >
+                            <div className="flex items-start justify-between gap-6">
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                    <Sparkles className="w-4 h-4" />
+                                  </div>
+                                  <p className="text-[11px] font-black text-natural-ink uppercase tracking-[0.2em]">Our AI Suggests</p>
+                                </div>
+                                <div>
+                                  <h4 className="text-2xl font-serif font-black text-natural-ink italic">{aiSuggestion.category}</h4>
+                                  <p className="text-xs text-natural-muted mt-3 leading-relaxed font-medium italic opacity-70">
+                                    "{aiSuggestion.reasoning}"
+                                  </p>
+                                </div>
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={() => setAiSuggestion(null)}
+                                className="w-8 h-8 flex items-center justify-center hover:bg-natural-sidebar rounded-full transition-colors"
+                              >
+                                <X className="w-4 h-4 text-natural-muted" />
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={applyAiCategory}
+                              className="w-full bg-natural-olive text-white py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] hover:bg-natural-ink transition-all shadow-xl shadow-natural-olive/20"
+                            >
+                              Adopt this suggestion
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold text-natural-muted tracking-widest ml-1">Phone / WhatsApp</label>
-                  <input 
-                    type="text" 
-                    value={editingGuest.phone || ''} 
-                    onChange={(e) => setEditingGuest({...editingGuest, phone: e.target.value})}
-                    className="input-natural"
-                    onBlur={() => updateGuest(editingGuest.id, { phone: editingGuest.phone })}
-                    placeholder="Include country code, e.g. 971..."
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="space-y-4">
+                    <label className="text-[10px] uppercase font-black text-natural-muted tracking-[0.3em] ml-2">Contact Link</label>
+                    <input 
+                      type="text" 
+                      value={editingGuest.phone || ''} 
+                      onChange={(e) => setEditingGuest({...editingGuest, phone: e.target.value})}
+                      className="w-full bg-natural-sidebar/30 border border-natural-border/30 px-6 py-4 rounded-2xl text-sm font-bold tracking-widest outline-none focus:bg-white focus:border-natural-olive transition-all h-14"
+                      onBlur={() => updateGuest(editingGuest.id, { phone: editingGuest.phone })}
+                      placeholder="WhatsApp / Phone number"
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-[10px] uppercase font-black text-natural-muted tracking-[0.3em] ml-2">RSVP / Status</label>
+                    <div className="relative">
+                      <select 
+                         value={editingGuest.status} 
+                         onChange={(e) => {
+                           const status = e.target.value as InvitationStatus;
+                           setEditingGuest({...editingGuest, status});
+                           updateGuest(editingGuest.id, { status });
+                         }}
+                         className="w-full bg-natural-sidebar/30 border border-natural-border/30 px-6 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-widest outline-none cursor-pointer hover:border-natural-olive transition-all h-14 appearance-none"
+                      >
+                        {Object.values(InvitationStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted pointer-events-none" />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold text-natural-muted tracking-widest ml-1">Personal Notes</label>
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase font-black text-natural-muted tracking-[0.3em] ml-2">Private Memoirs / Notes</label>
                   <textarea 
                     value={editingGuest.notes || ''} 
                     onChange={(e) => setEditingGuest({...editingGuest, notes: e.target.value})}
-                    className="input-natural h-32 resize-none py-5"
+                    className="w-full bg-natural-sidebar/30 border border-natural-border/30 px-6 py-6 rounded-3xl text-sm font-medium leading-relaxed outline-none focus:bg-white focus:border-natural-olive transition-all h-40 resize-none italic"
                     onBlur={() => updateGuest(editingGuest.id, { notes: editingGuest.notes })}
-                    placeholder="Dietary requirements, address, or special role..."
+                    placeholder="Dietary details, special mentions, or role in the celebration..."
                   />
                 </div>
 
-                <button 
-                  type="button"
-                  onClick={() => setEditingGuest(null)}
-                  className="btn-primary w-full mt-6 py-5 shadow-[0_10px_30px_rgba(90,90,64,0.3)]"
-                >
-                  Save Changes
-                </button>
+                <div className="pt-6">
+                  <button 
+                    type="button"
+                    onClick={() => setEditingGuest(null)}
+                    className="w-full bg-natural-ink text-white py-6 rounded-[2rem] text-[12px] font-black uppercase tracking-[0.4em] shadow-2xl hover:bg-natural-olive transition-all transform hover:-translate-y-1"
+                  >
+                    Soulfully Saved
+                  </button>
+                  <p className="text-center text-[9px] uppercase tracking-widest font-bold text-natural-muted mt-6 opacity-40">
+                    Changes take effect immediately across all devices
+                  </p>
+                </div>
               </form>
             </motion.div>
           </div>

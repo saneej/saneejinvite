@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus, View, Guest } from '../types';
-import { AlertCircle, CheckCircle2, Upload, Sparkles, X, Loader2, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Upload, Sparkles, X, Loader2, Plus, Trash2, Eye, EyeOff, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { extractGuestsFromImage } from '../services/aiService';
+import { suggestGuestCategory } from '../services/geminiService';
 import { cn } from '../lib/utils';
 
 type EntryMode = 'SINGLE' | 'BULK' | 'AI';
@@ -17,6 +18,8 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
   const [phone, setPhone] = useState('');
   const [category, setCategory] = useState(categories[0]?.name || '');
   const [notes, setNotes] = useState('');
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{ category: string, reasoning: string } | null>(null);
   const [suggestedBy, setSuggestedBy] = useState('');
   const [primaryCaller, setPrimaryCaller] = useState('');
   const [status, setStatus] = useState<InvitationStatus>(InvitationStatus.NOT_INVITED);
@@ -164,6 +167,7 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
     setNotes('');
     setSuggestedBy('');
     setPrimaryCaller('');
+    setAiSuggestion(null);
     setShowWarning(false);
     setIsWarningDismissed(false);
     setShowSuccess(true);
@@ -184,22 +188,54 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
+  const handleSuggestCategory = async () => {
+    if (!name.trim()) return;
+    setIsSuggesting(true);
+    try {
+      const result = await suggestGuestCategory({
+        guestName: name,
+        notes: notes,
+        availableCategories: categories
+      });
+      if (result) {
+        setAiSuggestion({
+          category: result.suggestedCategory,
+          reasoning: result.reasoning
+        });
+      }
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const applyAiCategory = () => {
+    if (aiSuggestion) {
+      setCategory(aiSuggestion.category);
+      setAiSuggestion(null);
+    }
+  };
+
   return (
-    <div className="max-w-xl mx-auto space-y-10 pb-20">
-      <header className="pt-4 border-b border-natural-border/50 pb-8 px-4">
-        <div className="flex justify-between items-start mb-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-xl mx-auto space-y-6 md:space-y-10 pb-24"
+    >
+      <header className="pt-4 border-b border-natural-border/50 pb-8 px-4 relative overflow-hidden group">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-natural-olive/5 rounded-full blur-[80px] group-hover:scale-150 transition-transform duration-1000" />
+        <div className="flex justify-between items-start mb-8">
           <div>
-            <h2 className="text-3xl font-serif font-bold text-natural-ink">Add Guests</h2>
-            <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Expanding your celebration</p>
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-natural-ink italic">Add Guests</h2>
+            <p className="text-natural-muted text-[10px] uppercase tracking-[0.3em] font-bold mt-2 opacity-60">Add new guests to your list</p>
           </div>
         </div>
         
-        <div className="flex gap-2 p-1 bg-natural-sidebar/30 rounded-xl w-fit">
+        <div className="flex gap-1 p-1.5 bg-natural-sidebar/60 backdrop-blur-sm rounded-[2rem] w-full shadow-inner border border-natural-border/30">
           <button 
             onClick={() => setMode('SINGLE')}
             className={cn(
-              "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
-              mode === 'SINGLE' ? "bg-white text-natural-olive shadow-sm" : "text-natural-muted hover:text-natural-ink"
+              "flex-1 px-4 py-3 rounded-[1.5rem] text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
+              mode === 'SINGLE' ? "bg-white text-natural-olive shadow-md ring-1 ring-natural-border/10" : "text-natural-muted hover:text-natural-ink"
             )}
           >
             Single
@@ -207,21 +243,22 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
           <button 
             onClick={() => setMode('BULK')}
             className={cn(
-              "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
-              mode === 'BULK' ? "bg-white text-natural-olive shadow-sm" : "text-natural-muted hover:text-natural-ink"
+              "flex-1 px-4 py-3 rounded-[1.5rem] text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
+              mode === 'BULK' ? "bg-white text-natural-olive shadow-md ring-1 ring-natural-border/10" : "text-natural-muted hover:text-natural-ink"
             )}
           >
-            Bulk Paste
+            Bulk
           </button>
           <button 
             onClick={() => setMode('AI')}
             className={cn(
-              "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              mode === 'AI' ? "bg-white text-natural-olive shadow-sm" : "text-natural-muted hover:text-natural-ink"
+              "flex-1 px-4 py-3 rounded-[1.5rem] text-[10px] font-bold uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2",
+              mode === 'AI' ? "bg-white text-natural-olive shadow-md ring-1 ring-natural-border/10" : "text-natural-muted hover:text-natural-ink"
             )}
           >
-            <Sparkles className="w-3 h-3" />
-            AI Screenshot
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">AI Screen</span>
+            <span className="sm:hidden">AI</span>
           </button>
         </div>
       </header>
@@ -250,23 +287,29 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
             <div className="grid grid-cols-2 gap-4">
                <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Assign Category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none appearance-none cursor-pointer"
-                >
-                  {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-                </select>
+                <div className="relative group">
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="custom-select w-full h-12 pr-10 appearance-none text-[10px] uppercase font-black tracking-widest"
+                  >
+                    {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-natural-olive pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Initial Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as InvitationStatus)}
-                  className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none appearance-none cursor-pointer"
-                >
-                  {Object.values(InvitationStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <div className="relative group">
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as InvitationStatus)}
+                    className="custom-select w-full h-12 pr-10 appearance-none text-[10px] uppercase font-black tracking-widest"
+                  >
+                    {Object.values(InvitationStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-natural-olive pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
+                </div>
               </div>
             </div>
 
@@ -291,9 +334,9 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
                   <Upload className="w-8 h-8 text-natural-olive" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-serif font-bold text-natural-ink">Upload Screenshot</h3>
+                  <h3 className="text-lg font-serif font-bold text-natural-ink">Add from Photo</h3>
                   <p className="text-xs text-natural-muted max-w-xs mx-auto mt-2 leading-relaxed">
-                    Upload a screenshot of your WhatsApp group or member list. AI will extract the names automatically.
+                    Take a photo of your guest names (from paper or another phone). AI will read the names for you.
                   </p>
                 </div>
                 
@@ -360,23 +403,29 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Assign Category</label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none appearance-none cursor-pointer"
-                    >
-                      {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-                    </select>
+                    <div className="relative group">
+                      <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        className="custom-select w-full h-12 pr-10 appearance-none text-[10px] uppercase font-black tracking-widest"
+                      >
+                        {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-natural-olive pointer-events-none group-hover:translate-y-[-40%] transition-transform" />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Status</label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as InvitationStatus)}
-                      className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-xs outline-none appearance-none cursor-pointer"
-                    >
-                      {Object.values(InvitationStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    <div className="relative group">
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as InvitationStatus)}
+                        className="custom-select w-full h-12 pr-10 appearance-none text-[10px] uppercase font-black tracking-widest"
+                      >
+                        {Object.values(InvitationStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-natural-olive pointer-events-none group-hover:translate-y-[-40%] transition-transform" />
+                    </div>
                   </div>
                 </div>
 
@@ -396,197 +445,263 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             onSubmit={handleSubmit} 
-            className="bg-white p-8 md:p-10 rounded-2xl border border-natural-border/60 shadow-sm space-y-8 mx-4"
+            className="bg-white p-8 md:p-12 rounded-[2.5rem] border border-natural-border/60 shadow-xl shadow-natural-olive/5 space-y-10 mx-4"
           >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2 relative">
-            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Guest Name</label>
-            <input
-              type="text"
-              required
-              placeholder="Full Name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (e.target.value === '') setIsWarningDismissed(false);
-              }}
-              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
-            />
-            <AnimatePresence>
-              {similarGuests.length > 0 && !isWarningDismissed && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute z-10 left-0 right-0 top-full mt-1 bg-white border border-natural-border shadow-xl rounded-xl p-4 space-y-3"
-                >
-                  <div className="flex justify-between items-start">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-natural-olive flex items-center gap-1.5">
-                      <AlertCircle className="w-3 h-3" />
-                      Wait, is this person already listed?
-                    </p>
-                    <button 
-                      type="button"
-                      onClick={() => setIsWarningDismissed(true)}
-                      className="p-1 hover:bg-natural-sidebar rounded-full transition-colors"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3 relative">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">Guest Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Full Name (e.g. Rahul Sharma)"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (e.target.value === '') setIsWarningDismissed(false);
+                  }}
+                  className="input-natural"
+                />
+                <AnimatePresence>
+                  {similarGuests.length > 0 && !isWarningDismissed && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      className="absolute z-30 left-0 right-0 top-full mt-3 bg-white border border-natural-olive/20 shadow-2xl rounded-2xl p-5 space-y-4"
                     >
-                      <X className="w-3 h-3 text-natural-muted" />
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {similarGuests.map(g => (
-                      <div key={g.id} className="flex items-center justify-between bg-natural-sidebar/30 p-2.5 rounded-lg text-xs">
-                        <div className="min-w-0">
-                          <p className="font-bold text-natural-ink truncate">{g.name}</p>
-                          <p className="text-[9px] text-natural-muted uppercase font-medium">{g.category}</p>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2 text-natural-olive">
+                          <AlertCircle className="w-4 h-4" />
+                          <p className="text-[10px] font-bold uppercase tracking-widest">Similarity Check</p>
                         </div>
-                        <span className="text-[8px] bg-white border border-natural-border px-1.5 py-0.5 rounded uppercase font-bold text-natural-muted">Existing</span>
+                        <button 
+                          type="button"
+                          onClick={() => setIsWarningDismissed(true)}
+                          className="p-1.5 hover:bg-natural-sidebar rounded-full transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5 text-natural-muted" />
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                  <p className="text-[8px] text-natural-muted italic">If they are different people, you can continue.</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Contact Info</label>
-            <input
-              type="text"
-              placeholder="WhatsApp or Phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all appearance-none cursor-pointer"
-            >
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.name}>{cat.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as InvitationStatus)}
-              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all appearance-none cursor-pointer"
-            >
-              {Object.values(InvitationStatus).map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted italic">Suggested By (Role/Name)</label>
-            <input
-              type="text"
-              placeholder="e.g. Dad, Groom's Sister"
-              value={suggestedBy}
-              onChange={(e) => setSuggestedBy(e.target.value)}
-              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted italic">Primary Caller (Responsibility)</label>
-            <input
-              type="text"
-              placeholder="Who should invite this guest?"
-              value={primaryCaller}
-              onChange={(e) => setPrimaryCaller(e.target.value)}
-              className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted">Notes</label>
-          <textarea
-            placeholder="Dietary requirements or special notes..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-3 rounded-xl text-sm outline-none focus:border-natural-olive transition-all h-32 resize-none"
-          />
-        </div>
-
-        {/* Message Preview Section */}
-        <div className="bg-natural-sidebar/10 rounded-2xl border border-natural-border/30 overflow-hidden">
-          <button 
-            type="button"
-            onClick={() => setShowPreview(!showPreview)}
-            className="w-full px-6 py-4 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive/5 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              Live Message Preview
+                      <div className="space-y-2">
+                        {similarGuests.map(g => (
+                          <div key={g.id} className="flex items-center justify-between bg-natural-sidebar/40 p-3 rounded-xl border border-natural-border/20">
+                            <div className="min-w-0">
+                              <p className="font-serif font-bold text-natural-ink truncate">{g.name}</p>
+                              <p className="text-[9px] text-natural-muted uppercase font-bold tracking-tighter opacity-60">{g.category}</p>
+                            </div>
+                            <span className="text-[8px] bg-white border border-natural-border px-2 py-0.5 rounded-full uppercase font-bold text-natural-muted shadow-sm">In List</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-natural-muted italic leading-relaxed">If these are different guests, you can safely continue adding them.</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">Contact Info</label>
+                <input
+                  type="text"
+                  placeholder="Phone Number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input-natural"
+                />
+              </div>
             </div>
-            <span className="text-[8px] opacity-60 font-medium">{showPreview ? 'Hide Preview' : 'Show Preview'}</span>
-          </button>
-          
-          <AnimatePresence>
-            {showPreview && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="px-6 pb-6 space-y-4"
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">Category</label>
+                  {(name || notes) && (
+                    <button
+                      type="button"
+                      onClick={handleSuggestCategory}
+                      disabled={isSuggesting}
+                      className="text-[9px] font-bold uppercase tracking-widest text-natural-olive flex items-center gap-1.5 hover:opacity-80 transition-opacity disabled:opacity-50"
+                    >
+                      {isSuggesting ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3 h-3" />
+                      )}
+                      AI Suggest Group
+                    </button>
+                  )}
+                </div>
+                <div className="relative group">
+                  <select
+                    value={category}
+                    onChange={(e) => {
+                      setCategory(e.target.value);
+                      setAiSuggestion(null);
+                    }}
+                    className="custom-select w-full h-14 pr-10 appearance-none text-[10px] uppercase font-black tracking-widest"
+                  >
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-olive pointer-events-none group-hover:translate-y-[-40%] transition-transform" />
+                  
+                  <AnimatePresence>
+                    {aiSuggestion && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        className="absolute z-40 left-0 right-0 top-full mt-4 bg-white border border-natural-olive/20 shadow-2xl rounded-[1.5rem] p-6 space-y-5"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Sparkles className="w-4 h-4 text-natural-olive" />
+                              <p className="text-[10px] font-bold text-natural-olive uppercase tracking-[0.2em]">Match Found</p>
+                            </div>
+                            <h4 className="text-xl font-serif font-bold text-natural-ink">{aiSuggestion.category}</h4>
+                            <p className="text-xs text-natural-muted mt-2 leading-relaxed italic border-l-2 border-natural-olive/10 pl-4">
+                              "{aiSuggestion.reasoning}"
+                            </p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => setAiSuggestion(null)}
+                            className="p-2 hover:bg-natural-sidebar rounded-full transition-colors"
+                          >
+                            <X className="w-4 h-4 text-natural-muted" />
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={applyAiCategory}
+                          className="w-full bg-natural-olive text-white py-4 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] shadow-lg shadow-natural-olive/20 hover:bg-natural-ink transition-all"
+                        >
+                          Keep Suggested Category
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">Current Status</label>
+                <div className="relative group">
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as InvitationStatus)}
+                    className="custom-select w-full h-14 pr-10 appearance-none text-[10px] uppercase font-black tracking-widest"
+                  >
+                    {Object.values(InvitationStatus).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-olive pointer-events-none group-hover:translate-y-[-40%] transition-transform" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted italic ml-1">Suggested By</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Groom's Parents"
+                  value={suggestedBy}
+                  onChange={(e) => setSuggestedBy(e.target.value)}
+                  className="input-natural"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted italic ml-1">Point of Contact</label>
+                <input
+                  type="text"
+                  placeholder="Who is calling this guest?"
+                  value={primaryCaller}
+                  onChange={(e) => setPrimaryCaller(e.target.value)}
+                  className="input-natural"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">Personal Notes</label>
+              <textarea
+                placeholder="Mention allergies, arrival dates, or special greetings..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full bg-natural-sidebar/50 border border-natural-border/40 px-6 py-5 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-natural-olive/5 focus:bg-white focus:border-natural-olive transition-all h-32 resize-none leading-relaxed"
+              />
+            </div>
+
+            {/* Message Preview Section */}
+            <div className="bg-natural-sidebar/30 rounded-[2rem] border border-natural-border/30 overflow-hidden">
+              <button 
+                type="button"
+                onClick={() => setShowPreview(!showPreview)}
+                className="w-full px-8 py-5 flex items-center justify-between group transition-colors hover:bg-natural-sidebar/50"
               >
-                <div className="space-y-2">
-                  <p className="text-[8px] uppercase font-bold text-natural-olive/60 tracking-wider flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-natural-olive"></span>
-                    Step 1: The Greeting
-                  </p>
-                  <div className="relative group">
-                    <div className="bg-white p-4 rounded-2xl rounded-tl-none border border-natural-border/30 text-[11px] text-natural-ink leading-relaxed font-serif italic shadow-sm relative z-0">
-                      {(settings.greetingMessage || '')
-                        .replace('[Name]', name || 'Guest Name')}
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-natural-olive/10 flex items-center justify-center text-natural-olive transition-transform group-hover:scale-110">
+                    {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-natural-olive">Check Invitation</p>
+                    <p className="text-[8px] text-natural-muted font-medium mt-0.5">See what they will receive</p>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <p className="text-[8px] uppercase font-bold text-emerald-600/60 tracking-wider flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Step 2: The Invitation
-                  </p>
-                  <div className="relative">
-                    <div className="bg-emerald-50/50 p-4 rounded-2xl rounded-tl-none border border-emerald-100/50 text-[11px] text-emerald-900 leading-relaxed font-serif whitespace-pre-wrap shadow-sm">
-                      {(settings.whatsappTemplate || '')
-                        .replace('[Name]', name || 'Guest Name')
-                        .replace('[Date]', settings.weddingDate || '')
-                        .replace('[Venue]', settings.venue || '')}
+                <div className="w-6 h-6 rounded-full border border-natural-border/40 flex items-center justify-center group-hover:border-natural-olive/40 transition-colors">
+                  <Plus className={cn("w-3 h-3 transition-transform duration-300", showPreview ? "rotate-45" : "rotate-0")} />
+                </div>
+              </button>
+              
+              <AnimatePresence>
+                {showPreview && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="px-8 pb-8 space-y-6"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1">
+                        <Send className="w-3 h-3 text-natural-olive opacity-40 shrink-0" />
+                        <p className="text-[8px] uppercase font-bold text-natural-olive/60 tracking-widest">Standard Greeting</p>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl rounded-tl-none border border-natural-border/30 shadow-sm relative">
+                        <div className="absolute top-2 right-4 text-[7px] font-bold uppercase text-natural-muted/30">Step One</div>
+                        <p className="text-xs text-natural-ink/80 leading-relaxed font-serif italic">
+                          {(settings.greetingMessage || '').replace('[Name]', name || 'Valued Guest')}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                
-                <div className="pt-2 flex items-center gap-2 opacity-40">
-                  <div className="flex-1 h-[1px] bg-natural-border"></div>
-                  <p className="text-[7px] uppercase font-bold tracking-tighter">Preview only • Customize in Settings</p>
-                  <div className="flex-1 h-[1px] bg-natural-border"></div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
 
-        <button
-          type="submit"
-          className="w-full bg-natural-olive text-white py-4 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-natural-ink transition-colors shadow-sm"
-        >
-          Add Guest to List
-        </button>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1 text-emerald-600">
+                        <CheckCircle2 className="w-3 h-3 opacity-40 shrink-0" />
+                        <p className="text-[8px] uppercase font-bold tracking-widest text-emerald-600/60">Final Invitation</p>
+                      </div>
+                      <div className="bg-emerald-50/40 p-6 rounded-2xl rounded-tl-none border border-emerald-100/50 shadow-sm relative">
+                        <div className="absolute top-2 right-4 text-[7px] font-bold uppercase text-emerald-600/20">Step Two</div>
+                        <p className="text-xs text-emerald-900 leading-relaxed font-serif whitespace-pre-wrap">
+                          {(settings.whatsappTemplate || '')
+                            .replace('[Name]', name || 'Valued Guest')
+                            .replace('[Date]', settings.weddingDate || 'TBD')
+                            .replace('[Venue]', settings.venue || 'Venue Location')}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <button
+              type="submit"
+              className="btn-primary w-full shadow-xl shadow-natural-olive/10"
+            >
+              Save Guest
+            </button>
 
         <AnimatePresence>
           {showWarning && (
@@ -692,6 +807,6 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
           </div>
         </section>
       )}
-    </div>
+    </motion.div>
   );
 }

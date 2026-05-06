@@ -10,7 +10,8 @@ import {
   UserPlus, 
   Trash2, 
   Mail,
-  Check
+  Check,
+  ChevronDown
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -143,18 +144,37 @@ export function Settings() {
     alert(`Invitation sent to ${collabEmail} (Note: They must sign in with this email)`);
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", duration: 0.5 } }
+  };
+
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
-      <header className="pt-4 border-b border-natural-border/50 pb-8">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="max-w-6xl mx-auto space-y-8 pb-24 px-4"
+    >
+      <motion.header variants={itemVariants} className="pt-4 border-b border-natural-border/50 pb-8">
         <h2 className="text-3xl font-serif font-bold text-natural-ink">Settings</h2>
-        <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Personalizing your celebration hub</p>
-      </header>
+        <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Update your wedding info</p>
+      </motion.header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <motion.form 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            variants={itemVariants}
             onSubmit={handleSubmit} 
             className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm space-y-8"
           >
@@ -229,13 +249,13 @@ export function Settings() {
 
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted flex justify-between">
-                  <span>AI Invitation Tone</span>
-                  <span className="opacity-50 lowercase tracking-normal">Describe your desired tone for AI messages</span>
+                  <span>AI Message Tone</span>
+                  <span className="opacity-50 lowercase tracking-normal">e.g. Respectful, friendly, formal</span>
                 </label>
                 <textarea 
                   value={formData.invitationTone} 
                   onChange={(e) => setFormData({...formData, invitationTone: e.target.value})}
-                  placeholder="e.g., Warm, respectful, traditional with elegance."
+                  placeholder="e.g. Kind and respectful"
                   className="w-full bg-natural-sidebar/30 border border-natural-border/50 px-4 py-4 rounded-xl text-sm outline-none focus:border-natural-olive transition-all h-24 resize-none"
                 />
               </div>
@@ -251,8 +271,7 @@ export function Settings() {
 
           {/* Collaborators Management */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            variants={itemVariants}
             className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm space-y-8"
           >
             <div className="flex items-center gap-3">
@@ -260,8 +279,8 @@ export function Settings() {
                 <Users className="w-5 h-5 text-natural-olive" />
               </div>
               <div>
-                <h3 className="text-lg font-serif font-bold text-natural-ink">Collaborators</h3>
-                <p className="text-[9px] text-natural-muted uppercase font-bold tracking-widest">Involve family in management</p>
+                <h3 className="text-lg font-serif font-bold text-natural-ink">Helpers</h3>
+                <p className="text-[9px] text-natural-muted uppercase font-bold tracking-widest">Add family members to help you</p>
               </div>
             </div>
 
@@ -297,18 +316,21 @@ export function Settings() {
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-natural-muted">Role</label>
                 <div className="flex gap-2">
-                  <select
-                    value={collabRole}
-                    onChange={(e) => setCollabRole(e.target.value)}
-                    className="flex-1 bg-white border border-natural-border/40 px-4 py-2.5 rounded-xl text-xs outline-none appearance-none cursor-pointer"
-                  >
-                    <option value="Family">Family</option>
-                    <option value="Editor">Editor</option>
-                    <option value="Viewer">Viewer</option>
-                  </select>
+                  <div className="relative flex-1 group">
+                    <select
+                      value={collabRole}
+                      onChange={(e) => setCollabRole(e.target.value)}
+                      className="custom-select w-full h-11 pr-10 appearance-none text-[10px] uppercase font-black tracking-widest"
+                    >
+                      <option value="Family">Family</option>
+                      <option value="Editor">Editor</option>
+                      <option value="Viewer">Viewer</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-natural-olive pointer-events-none group-hover:translate-y-[-40%] transition-transform" />
+                  </div>
                   <button 
                     type="submit"
-                    className="bg-natural-olive text-white px-4 rounded-xl hover:bg-natural-ink transition-colors"
+                    className="bg-natural-olive text-white px-6 rounded-xl hover:bg-natural-ink transition-colors font-bold text-[10px] uppercase tracking-widest"
                   >
                     Add
                   </button>
@@ -317,11 +339,11 @@ export function Settings() {
             </form>
 
             <div className="space-y-3">
-              <h4 className="text-[10px] uppercase font-bold text-natural-muted px-1">Active Collaborators</h4>
+              <h4 className="text-[10px] uppercase font-bold text-natural-muted px-1">Current Helpers</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {collaborators.length === 0 ? (
                   <p className="text-[11px] text-natural-muted font-medium py-8 text-center bg-natural-sidebar/10 rounded-xl border border-dashed border-natural-border/40 col-span-2">
-                    No collaborators added yet.
+                    No helpers added yet.
                   </p>
                 ) : (
                   collaborators.map(c => (
@@ -351,7 +373,7 @@ export function Settings() {
           </motion.div>
         </div>
 
-        <div className="space-y-6">
+        <motion.div variants={itemVariants} className="space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm">
             <h3 className="text-lg font-serif font-bold text-natural-ink mb-4">Data Management</h3>
             <div className="space-y-3">
@@ -415,8 +437,8 @@ export function Settings() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -116,5 +116,11 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
       }
     }
+
+    match /shared_lists/{sharedId} {
+      allow get: if true;
+      allow create: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+    }
   }
 }

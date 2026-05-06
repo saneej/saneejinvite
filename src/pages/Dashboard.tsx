@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus } from '../types';
-import { CheckCircle2, Send, HelpCircle, Users, UserPlus, Tags } from 'lucide-react';
+import { CheckCircle2, Send, HelpCircle, Users, UserPlus, Tags, Flower } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   BarChart, 
@@ -55,10 +55,10 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
   const invitationRate = totalGuests > 0 ? Math.round((invitedCount / totalGuests) * 100) : 0;
 
   const stats = [
-    { label: 'Total Guests', value: totalGuests, icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-    { label: 'Invited', value: invitedCount, icon: Send, color: 'text-purple-600', bgColor: 'bg-purple-50' },
-    { label: 'Confirmed', value: confirmedCount, icon: CheckCircle2, color: 'text-green-600', bgColor: 'bg-green-50' },
-    { label: 'Not Invited', value: notInvitedCount, icon: HelpCircle, color: 'text-orange-600', bgColor: 'bg-orange-50' },
+    { label: 'Total Guests', value: totalGuests, icon: Users, color: 'text-natural-olive', bgColor: 'bg-natural-sidebar' },
+    { label: 'Invited', value: invitedCount, icon: Send, color: 'text-indigo-600', bgColor: 'bg-indigo-50' },
+    { label: 'Confirmed', value: confirmedCount, icon: CheckCircle2, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+    { label: 'Not Invited', value: notInvitedCount, icon: HelpCircle, color: 'text-slate-500', bgColor: 'bg-slate-50' },
   ];
 
   const categoryData = categories.map(cat => ({
@@ -67,99 +67,145 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
   })).filter(d => d.count > 0);
 
   const statusData = [
-    { name: 'Invited', value: invitedCount, color: '#9333ea' },
-    { name: 'Confirmed', value: confirmedCount, color: '#16a34a' },
-    { name: 'Not Invited', value: notInvitedCount, color: '#ea580c' },
-    { name: 'Not Coming', value: guests.filter(g => g.status === InvitationStatus.NOT_COMING).length, color: '#dc2626' },
+    { name: 'Invited', value: invitedCount, color: '#6366f1' },
+    { name: 'Confirmed', value: confirmedCount, color: '#10b981' },
+    { name: 'Not Invited', value: notInvitedCount, color: '#94a3b8' },
+    { name: 'Not Coming', value: guests.filter(g => g.status === InvitationStatus.NOT_COMING).length, color: '#f43f5e' },
   ].filter(d => d.value > 0);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20, scale: 0.95 },
+    show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", duration: 0.5 } }
+  };
+
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4">
-      <header className="pt-4 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div>
-              <h2 className="text-3xl font-serif font-bold text-natural-ink">
-                {settings.brideName} & {settings.groomName}'s Celebration
-              </h2>
-              <p className="text-natural-muted text-[10px] uppercase tracking-[0.2em] font-medium mt-1">Reflecting on your journey together</p>
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="max-w-6xl mx-auto space-y-12 pb-24 px-4"
+    >
+      <motion.header variants={itemVariants} className="pt-8 space-y-12 text-center">
+        <div className="flex flex-col items-center justify-center gap-10">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-4 bg-natural-olive/5 px-6 py-2 rounded-full border border-natural-olive/10 mb-2">
+               <span className="text-[10px] uppercase tracking-[0.5em] font-black text-natural-muted">Wedding Manager</span>
             </div>
-            <ConnectionStatus />
+            <h2 className="text-5xl md:text-7xl font-serif font-black text-natural-ink italic leading-tight">
+              {settings.brideName} <span className="text-natural-olive">&</span> {settings.groomName}
+            </h2>
+            <div className="flex items-center justify-center gap-4">
+              <div className="h-px w-16 bg-natural-olive/20" />
+              <p className="text-natural-muted text-[11px] uppercase tracking-[0.5em] font-black opacity-40">The Grand Celebration</p>
+              <div className="h-px w-16 bg-natural-olive/20" />
+            </div>
           </div>
-          <div className="bg-natural-olive/10 border border-natural-olive/20 rounded-2xl p-4 flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-[10px] uppercase font-bold text-natural-olive tracking-widest leading-none">Wedding Day</p>
-              <p className="text-sm font-serif font-bold text-natural-ink mt-1">
-                {isValidDate 
-                  ? weddingDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                  : 'Date not set'}
-              </p>
-            </div>
-            <div className="h-10 w-[1px] bg-natural-olive/20" />
-            <div className="flex flex-col items-center">
-              <span className="text-2xl font-serif font-bold text-natural-olive leading-none">{daysRemaining > 0 ? daysRemaining : 0}</span>
-              <span className="text-[8px] uppercase font-bold text-natural-olive/60 tracking-tighter">Days Left</span>
+          
+          <div className="relative group w-full max-w-sm">
+            <div className="absolute inset-x-0 -bottom-10 h-40 bg-natural-olive/10 rounded-full blur-[100px] opacity-20 pointer-events-none" />
+            <div className="relative bg-white border-2 border-natural-border/30 rounded-[3rem] p-10 flex flex-col items-center gap-6 shadow-2xl transition-all duration-700 hover:border-natural-olive/30 hover:scale-[1.02]">
+              <div className="w-12 h-12 rounded-2xl bg-natural-sidebar flex items-center justify-center text-natural-olive mb-2">
+                <Flower className="w-6 h-6" />
+              </div>
+              <div className="space-y-4">
+                <p className="text-[11px] uppercase font-black text-natural-muted tracking-[0.4em]">Save the Date</p>
+                <p className="text-2xl font-serif font-black text-natural-ink italic">
+                  {isValidDate 
+                    ? weddingDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    : 'Awaiting Date'}
+                </p>
+                <div className="flex items-center justify-center gap-4 mt-8 pt-6 border-t border-natural-border/20">
+                  <div className="text-center">
+                    <p className="text-3xl font-serif font-black text-natural-olive italic leading-none">{daysRemaining > 0 ? daysRemaining : 0}</p>
+                    <p className="text-[9px] uppercase font-black text-natural-muted tracking-widest mt-2">Days to go</p>
+                  </div>
+                  <div className="h-8 w-px bg-natural-border/30" />
+                  <div className="text-center">
+                    <p className="text-3xl font-serif font-bold text-natural-ink italic leading-none">{totalGuests}</p>
+                    <p className="text-[9px] uppercase font-black text-natural-muted tracking-widest mt-2">Guests</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Progress Summary Card */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm space-y-4">
-            <div className="flex justify-between items-end">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-natural-border/60 shadow-sm space-y-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-natural-olive/5 rounded-bl-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
+            <div className="flex justify-between items-end relative z-10">
               <div>
-                <p className="text-[9px] font-bold text-natural-muted uppercase tracking-widest">Invitation Sent</p>
-                <h4 className="text-xl font-serif font-bold text-natural-ink mt-1">{invitedCount} / {totalGuests}</h4>
+                <p className="text-[10px] font-bold text-natural-muted uppercase tracking-[0.2em]">Sent invitations</p>
+                <h4 className="text-3xl font-serif font-bold text-natural-ink mt-2 italic">{invitedCount} <span className="text-sm font-sans font-normal text-natural-muted/50 not-italic">/ {totalGuests}</span></h4>
               </div>
-              <span className="text-xs font-bold text-natural-olive bg-natural-sidebar px-2 py-1 rounded-lg">{invitationRate}%</span>
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-bold text-natural-olive bg-natural-olive/5 px-3 py-1 rounded-full">{invitationRate}%</span>
+              </div>
             </div>
-            <div className="h-2 bg-natural-sidebar rounded-full overflow-hidden">
+            <div className="h-2 bg-natural-sidebar/50 rounded-full overflow-hidden relative z-10">
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${invitationRate}%` }}
-                className="h-full bg-natural-olive/40"
+                className="h-full bg-natural-olive/40 rounded-full"
               />
             </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm space-y-4">
-            <div className="flex justify-between items-end">
+          
+          <div className="bg-white p-8 rounded-[2.5rem] border border-natural-border/60 shadow-sm space-y-6 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-bl-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
+            <div className="flex justify-between items-end relative z-10">
               <div>
-                <p className="text-[9px] font-bold text-natural-muted uppercase tracking-widest">Confirmed RSVPs</p>
-                <h4 className="text-xl font-serif font-bold text-natural-ink mt-1">{confirmedCount} / {totalGuests}</h4>
+                <p className="text-[10px] font-bold text-natural-muted uppercase tracking-[0.2em]">Confirmed RSVPs</p>
+                <h4 className="text-3xl font-serif font-bold text-natural-ink mt-2 italic">{confirmedCount} <span className="text-sm font-sans font-normal text-natural-muted/50 not-italic">/ {totalGuests}</span></h4>
               </div>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{confirmationRate}%</span>
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{confirmationRate}%</span>
+              </div>
             </div>
-            <div className="h-2 bg-natural-sidebar rounded-full overflow-hidden">
+            <div className="h-2 bg-natural-sidebar/50 rounded-full overflow-hidden relative z-10">
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${confirmationRate}%` }}
-                className="h-full bg-emerald-500/40"
+                className="h-full bg-emerald-500/30 rounded-full"
               />
             </div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Stats Grid */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-        {stats.map((stat) => (
+      <motion.section variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {stats.map((stat, idx) => (
           <motion.div
             key={stat.label}
-            whileHover={{ y: -5 }}
-            className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm hover:border-natural-olive transition-all cursor-default"
+            variants={itemVariants}
+            whileHover={{ y: -8, scale: 1.02 }}
+            className="bg-white p-8 rounded-[2rem] border border-natural-border/60 shadow-sm hover:shadow-xl hover:border-natural-olive/20 transition-all duration-300 relative overflow-hidden"
           >
-            <div className={`p-2 rounded-lg w-fit ${stat.bgColor} ${stat.color} mb-4`}>
+            <div className={`p-3 rounded-2xl w-fit ${stat.bgColor} ${stat.color} mb-6 shadow-inner`}>
               <stat.icon className="w-5 h-5" />
             </div>
-            <p className="text-[9px] font-bold text-natural-muted uppercase tracking-widest">{stat.label}</p>
-            <h3 className="text-3xl font-serif font-bold text-natural-ink mt-1">{stat.value}</h3>
+            <p className="text-[10px] font-bold text-natural-muted uppercase tracking-[0.2em]">{stat.label}</p>
+            <h3 className="text-4xl font-serif font-bold text-natural-ink mt-2 italic">{stat.value}</h3>
           </motion.div>
         ))}
-      </section>
+      </motion.section>
 
       {/* Quick Actions */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <button 
+      <motion.section variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <motion.button 
+          whileTap={{ scale: 0.95 }}
           onClick={() => onViewChange('add')}
           className="flex items-center gap-3 p-4 bg-natural-olive text-white rounded-2xl hover:bg-natural-ink transition-all shadow-sm hover:shadow-md group"
         >
@@ -167,8 +213,9 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
             <UserPlus className="w-4 h-4" />
           </div>
           <span className="text-[10px] font-bold uppercase tracking-widest">Add Guest</span>
-        </button>
-        <button 
+        </motion.button>
+        <motion.button 
+          whileTap={{ scale: 0.95 }}
           onClick={() => onViewChange('guests')}
           className="flex items-center gap-3 p-4 bg-white border border-natural-border text-natural-olive rounded-2xl hover:border-natural-olive transition-all shadow-sm group"
         >
@@ -176,8 +223,9 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
             <Users className="w-4 h-4" />
           </div>
           <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">View All</span>
-        </button>
-        <button 
+        </motion.button>
+        <motion.button 
+          whileTap={{ scale: 0.95 }}
           onClick={() => onViewChange('categories')}
           className="flex items-center gap-3 p-4 bg-white border border-natural-border text-natural-olive rounded-2xl hover:border-natural-olive transition-all shadow-sm group"
         >
@@ -185,8 +233,9 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
             <Tags className="w-4 h-4" />
           </div>
           <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">Categories</span>
-        </button>
-        <button 
+        </motion.button>
+        <motion.button 
+          whileTap={{ scale: 0.95 }}
           onClick={() => onViewChange('invite')}
           className="flex items-center gap-3 p-4 bg-white border border-natural-border text-emerald-600 rounded-2xl hover:border-emerald-600 transition-all shadow-sm group"
         >
@@ -194,12 +243,12 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
             <Send className="w-4 h-4" />
           </div>
           <span className="text-[10px] font-bold uppercase tracking-widest text-natural-ink">Invite Station</span>
-        </button>
-      </section>
+        </motion.button>
+      </motion.section>
 
       {/* Quick Action: Pending Invitations */}
       {pendingGuests.length > 0 && (
-        <section className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm">
+        <motion.section variants={itemVariants} className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm">
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-lg font-serif font-bold text-natural-ink">Quick Invite</h3>
@@ -229,86 +278,127 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
               </div>
             ))}
           </div>
-        </section>
+        </motion.section>
       )}
 
       {/* Analytics Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Category Breakdown */}
-        <div className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm">
-          <div className="mb-8">
-            <h3 className="text-lg font-serif font-bold text-natural-ink">By Category</h3>
-            <p className="text-[10px] text-natural-muted uppercase tracking-widest">Grouping your loved ones</p>
+        <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-natural-border/60 shadow-sm relative overflow-hidden group">
+          <div>
+            <h3 className="text-2xl font-serif font-bold text-natural-ink italic">Guest Groups</h3>
+            <p className="text-[10px] text-natural-muted uppercase tracking-[0.3em] font-bold mt-2 opacity-60">Guests by category</p>
           </div>
           
-          <div className="h-64 w-full">
+          <div className="h-72 w-full">
             {categoryData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryData}>
-                  <XAxis dataKey="name" fontSize={9} tickLine={false} axisLine={false} tick={{fill: '#8e8e7a', fontWeight: 'bold'}} />
-                  <Tooltip 
-                    cursor={{fill: '#fcfaf8'}}
-                    contentStyle={{borderRadius: '12px', border: '1px solid #e5e5d5', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '10px'}}
+                  <XAxis 
+                    dataKey="name" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{fill: '#8e8e7a', fontWeight: '600'}}
+                    dy={12}
                   />
-                  <Bar dataKey="count" fill="#5a5a40" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Tooltip 
+                    cursor={{fill: '#fcfaf8', radius: 8}}
+                    contentStyle={{
+                      borderRadius: '20px', 
+                      border: '1px solid #e8e2d9', 
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', 
+                      fontSize: '11px',
+                      padding: '12px 16px'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    fill="#c5a059" 
+                    radius={[10, 10, 2, 2]} 
+                    barSize={24}
+                    animationBegin={500}
+                    animationDuration={1500}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-natural-muted italic text-xs bg-natural-sidebar/20 rounded-xl border border-dashed border-natural-border">
-                No guest data recorded.
+              <div className="h-full flex items-center justify-center text-natural-muted italic text-sm bg-natural-sidebar/10 rounded-[2rem] border border-dashed border-natural-border/60">
+                Awaiting guest entry...
               </div>
             )}
           </div>
         </div>
 
         {/* Status Breakdown */}
-        <div className="bg-white p-8 rounded-2xl border border-natural-border/60 shadow-sm">
-          <div className="mb-8">
-            <h3 className="text-lg font-serif font-bold text-natural-ink">Invitation Flow</h3>
-            <p className="text-[10px] text-natural-muted uppercase tracking-widest">Progression overview</p>
+        <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-natural-border/60 shadow-sm relative overflow-hidden">
+          <div>
+            <h3 className="text-2xl font-serif font-bold text-natural-ink italic">RSVP Progress</h3>
+            <p className="text-[10px] text-natural-muted uppercase tracking-[0.3em] font-bold mt-2 opacity-60">Track your wedding responses</p>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-center gap-8">
-            <div className="h-56 w-full sm:w-1/2 flex items-center justify-center">
+          <div className="flex flex-col lg:flex-row items-center gap-10">
+            <div className="h-64 w-full lg:w-1/2 flex items-center justify-center relative">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-center">
+                  <p className="text-[8px] uppercase font-bold text-natural-muted tracking-widest">RSVPs</p>
+                  <p className="text-xl font-serif font-bold text-natural-ink">{confirmedCount}</p>
+                </div>
+              </div>
               {statusData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={statusData}
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={8}
+                      innerRadius={65}
+                      outerRadius={85}
+                      paddingAngle={10}
                       dataKey="value"
                       stroke="none"
+                      animationBegin={800}
+                      animationDuration={1500}
                     >
                       {statusData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{borderRadius: '12px', border: '1px solid #e5e5d5', fontSize: '10px'}} />
+                    <Tooltip 
+                      contentStyle={{
+                        borderRadius: '20px', 
+                        border: '1px solid #e8e2d9', 
+                        fontSize: '11px',
+                        padding: '12px'
+                      }} 
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full w-full flex items-center justify-center text-natural-muted italic text-xs bg-natural-sidebar/20 rounded-xl border border-dashed border-natural-border">
-                  No statuses.
+                <div className="h-full w-full flex items-center justify-center text-natural-muted italic text-sm bg-natural-sidebar/10 rounded-[2rem] border border-dashed border-natural-border/60">
+                  No statuses yet.
                 </div>
               )}
             </div>
             
-            <div className="w-full sm:w-1/2 space-y-2">
+            <div className="w-full lg:w-1/2 space-y-3">
               {statusData.map((s, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-natural-sidebar/30 border border-natural-border/40">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-natural-muted">{s.name}</span>
+                <motion.div 
+                  key={idx} 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 1 + idx * 0.1 }}
+                  className="flex items-center justify-between p-4 rounded-2xl bg-natural-sidebar/30 border border-natural-border/20 group hover:border-natural-olive/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full ring-4 ring-white shadow-sm" style={{ backgroundColor: s.color }} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-natural-muted group-hover:text-natural-ink transition-colors">{s.name}</span>
                   </div>
-                  <span className="text-sm font-serif font-bold text-natural-ink">{s.value}</span>
-                </div>
+                  <span className="text-lg font-serif font-bold text-natural-ink italic">{s.value}</span>
+                </motion.div>
               ))}
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
       {/* Activity and Breakdown SECTION ENDS */}
       
       {totalGuests === 0 && (
@@ -385,6 +475,6 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
           </div>
         </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

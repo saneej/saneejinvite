@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Calendar, MapPin, Users, Mail, Sparkles, ArrowRight, ChevronRight, CheckCircle2, Info } from 'lucide-react';
+import { Flower, Calendar, MapPin, Users, Mail, Sparkles, ArrowRight, ChevronRight, CheckCircle2, Info } from 'lucide-react';
 import { useGuests } from '../context/GuestContext';
 import { View } from '../types';
 import { cn } from '../lib/utils';
@@ -62,13 +62,13 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6 text-center"
               >
-                <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Heart className="w-10 h-10 text-rose-500 fill-rose-500/20" />
+                <div className="w-20 h-20 bg-natural-sidebar rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                  <Flower className="w-10 h-10 text-natural-olive" />
                 </div>
                 <div>
                   <h2 className="text-3xl font-serif font-bold text-natural-ink italic">Congratulations!</h2>
                   <p className="text-natural-muted mt-3 text-sm leading-relaxed max-w-xs mx-auto">
-                    Let's set up your beautiful celebration. This app will help you manage guests, track invitations, and involve your family.
+                    Let's set up your beautiful celebration. WED Invitor will help you manage guests, track invitations, and involve your family.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-left pt-6">

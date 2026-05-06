@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Heart, 
+  Flower, 
   Sparkles, 
   MessageCircle, 
   Users, 
@@ -20,8 +20,8 @@ const features = [
     title: "AI Invitation Assistant",
     description: "Write the perfect message with our AI that understands your wedding's unique tone and cultural nuances.",
     icon: <Bot className="w-6 h-6" />,
-    color: "bg-blue-50",
-    textColor: "text-blue-600",
+    color: "bg-indigo-50",
+    textColor: "text-indigo-600",
     image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=800"
   },
   {
@@ -36,16 +36,16 @@ const features = [
     title: "Real-time RSVP Manager",
     description: "Track responses as they happen. Categorize guests into family, friends, and sides to manage logistics easily.",
     icon: <Users className="w-6 h-6" />,
-    color: "bg-amber-50",
-    textColor: "text-amber-600",
+    color: "bg-slate-100",
+    textColor: "text-slate-900",
     image: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80&w=800"
   },
   {
-    title: "Collaborative Planning",
-    description: "Invite your partner or family members as collaborators. Manage the guest list together with synced updates.",
+    title: "Collaborative Help",
+    description: "Invite family members or friends as helpers. Manage the guest list together in real-time.",
     icon: <Share2 className="w-6 h-6" />,
-    color: "bg-purple-50",
-    textColor: "text-purple-600",
+    color: "bg-amber-50",
+    textColor: "text-amber-700",
     image: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&q=80&w=800"
   }
 ];
@@ -68,20 +68,20 @@ export function LandingPage({ onLogin }: { onLogin: () => void }) {
       {/* Floating Decorative Elements */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-natural-olive/3 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[30vh] h-[30vh] bg-natural-accent/50 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[30vh] h-[30vh] bg-gold-accent/5 rounded-full blur-[100px]" />
       </div>
 
       {/* Header */}
       <header className="relative z-20 flex justify-between items-center px-6 md:px-12 py-8 max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-natural-olive text-white rounded-xl flex items-center justify-center shadow-lg rotate-3 group overflow-hidden transition-transform hover:rotate-0">
-            <Heart className="w-5 h-5 fill-current" />
+            <Flower className="w-5 h-5" />
           </div>
-          <span className="font-serif text-2xl font-bold text-natural-olive tracking-tight">SNJ Wed inviter</span>
+          <span className="font-serif text-2xl font-bold text-natural-olive tracking-tight">Wedding Vows</span>
         </div>
         <button 
           onClick={onLogin}
-          className="flex items-center gap-2 px-6 py-3 bg-natural-olive text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-[#4a4a35] transition-all shadow-md active:scale-95"
+          className="flex items-center gap-2 px-6 py-3 bg-natural-olive text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-natural-ink transition-all shadow-md active:scale-95"
         >
           <LogIn className="w-3 h-3" />
           Login
@@ -96,14 +96,14 @@ export function LandingPage({ onLogin }: { onLogin: () => void }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="inline-flex items-center gap-2 px-4 py-2 bg-natural-olive/5 text-natural-olive rounded-full text-[10px] font-bold uppercase tracking-widest mb-6">
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-gold-accent/5 text-gold-accent rounded-full text-[10px] font-bold uppercase tracking-widest mb-6 border border-gold-accent/10">
               <Sparkles className="w-3 h-3" />
               AI-Powered Wedding Planning
             </span>
             <h1 className="text-5xl md:text-7xl font-serif font-bold text-natural-olive leading-[1.1] mb-6">
               Invite your guests with <span className="italic">grace</span> and <span className="relative inline-block">
                 elegance
-                <div className="absolute -bottom-2 left-0 w-full h-1 bg-natural-olive/20 rounded-full" />
+                <div className="absolute -bottom-2 left-0 w-full h-1 bg-gold-accent/20 rounded-full" />
               </span>
             </h1>
             <p className="text-natural-muted text-lg md:text-xl max-w-2xl leading-relaxed">
@@ -119,7 +119,7 @@ export function LandingPage({ onLogin }: { onLogin: () => void }) {
           >
             <button 
               onClick={onLogin}
-              className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 bg-natural-olive text-white rounded-2xl font-bold uppercase tracking-[0.2em] text-xs hover:bg-[#4a4a35] transition-all shadow-2xl active:scale-95 group"
+              className="w-full sm:w-auto flex items-center justify-center gap-3 px-10 py-5 bg-natural-olive text-white rounded-2xl font-bold uppercase tracking-[0.2em] text-xs hover:bg-natural-ink transition-all shadow-2xl active:scale-95 group"
             >
               Get Started Free
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -323,7 +323,7 @@ export function LandingPage({ onLogin }: { onLogin: () => void }) {
           
           <div className="relative z-10 space-y-10">
             <h2 className="text-4xl md:text-6xl font-serif font-bold leading-tight">Start your journey to a <br className="hidden md:block" /> perfectly organized wedding.</h2>
-            <p className="text-natural-accent font-medium text-lg opacity-80 max-w-2xl mx-auto italic">Join hundreds of happy couples who simplified their guest management with SNJ Wed inviter.</p>
+            <p className="text-natural-accent font-medium text-lg opacity-80 max-w-2xl mx-auto italic">Join hundreds of happy couples who simplified their guest management with Wedding Vows.</p>
             
             <button 
               onClick={onLogin}
@@ -341,13 +341,13 @@ export function LandingPage({ onLogin }: { onLogin: () => void }) {
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="flex items-center justify-center gap-3 mb-8 opacity-50 grayscale hover:grayscale-0 transition-all">
             <div className="w-8 h-8 bg-natural-olive text-white rounded-lg flex items-center justify-center rotate-3">
-              <Heart className="w-4 h-4 fill-current" />
+              <Flower className="w-4 h-4" />
             </div>
-            <span className="font-serif text-xl font-bold text-natural-olive">SNJ Wed inviter</span>
+            <span className="font-serif text-xl font-bold text-natural-olive">Wedding Vows</span>
           </div>
           <p className="text-natural-muted text-[10px] font-bold uppercase tracking-widest leading-loose">
             Built with love for your special day. <br />
-            © {new Date().getFullYear()} SNJ Wed inviter. All rights reserved.
+            © {new Date().getFullYear()} Wedding Vows. All rights reserved.
           </p>
         </div>
       </footer>
