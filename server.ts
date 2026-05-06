@@ -3,14 +3,17 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import bodyParser from "body-parser";
 import fetch from "node-fetch";
-import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import fs from "fs";
+import { GoogleGenAI } from "@google/genai";
 
 async function startServer() {
   console.log(">>> Server process starting...");
   const app = express();
   const PORT = 3000;
+
+  const ai = new GoogleGenAI(process.env.GEMINI_API_KEY || "");
 
   const LOG_FILE = path.join(process.cwd(), "server.log");
   function logToFile(msg: string) {
@@ -434,6 +437,125 @@ async function startServer() {
       res.json(data);
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // --- AI Endpoints ---
+
+  app.post("/api/ai/chat", async (req, res) => {
+    const { query, guests, settings, history } = req.body;
+    if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+
+    const contextPrompt = `You are a helpful wedding planning assistant. 
+Current Wedding Details:
+- Couple: ${settings.brideName} & ${settings.groomName}
+- Date: ${settings.weddingDate}
+- Venue: ${settings.venue}
+
+Guest List Overview:
+- Total Guests: ${guests.length}
+
+Guest Data:
+${guests.map((g: any) => `- ${g.name} (${g.category}): Status: ${g.status}`).join('\n')}
+
+Using this data, answer the user's question or help them with their wedding planning. 
+If they ask for statistics, calculate them. If they ask for advice, be supportive and elegant.
+Keep your response concise and helpful.`;
+
+    try {
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const chat = model.startChat({
+        history: [
+          { role: 'user', parts: [{ text: contextPrompt }] },
+          { role: 'model', parts: [{ text: "Understood. I am ready to help you manage your wedding guest list and planning." }] },
+          ...(history || []).map((h: any) => ({
+            role: h.role === 'user' ? 'user' : 'model',
+            parts: [{ text: h.text }]
+          }))
+        ]
+      });
+
+      const result = await chat.sendMessage(query);
+      res.json({ text: result.response.text() });
+    } catch (error) {
+      console.error("AI Chat Error:", error);
+      res.status(500).json({ error: "AI processing failed" });
+    }
+  });
+
+  app.post("/api/ai/generate-invitation", async (req, res) => {
+    const { guestName, category, tone, weddingDate, weddingLocation } = req.body;
+    if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+
+    const prompt = `Write a wedding invitation message for a guest.
+Context:
+- Guest Name: ${guestName}
+- Relation/Category: ${category}
+- Date: ${weddingDate}
+- Venue: ${weddingLocation}
+- Requested Tone: ${tone}
+
+Please write a personalized, warm message that can be sent via WhatsApp.
+Output ONLY the message text.`;
+
+    try {
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const result = await model.generateContent(prompt);
+      res.json({ text: result.response.text() });
+    } catch (error) {
+      res.status(500).json({ error: "AI generation failed" });
+    }
+  });
+
+  app.post("/api/ai/suggest-categories", async (req, res) => {
+    const { names } = req.body;
+    if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+
+    const prompt = `Given this list of wedding guests, suggest a short category name for each (e.g., "Groom's Family", "Bride's Friends", "Work Colleagues").
+Names:
+${names.join('\n')}
+
+Format your response as a JSON array of objects: [{"name": "Name", "category": "Suggested Category"}].
+Return ONLY the JSON.`;
+
+    try {
+      const model = ai.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      const result = await model.generateContent(prompt);
+      res.json(JSON.parse(result.response.text()));
+    } catch (error) {
+      res.status(500).json({ error: "AI categorization failed" });
+    }
+  });
+
+  app.post("/api/ai/extract-guests", async (req, res) => {
+    const { base64Data, mimeType } = req.body;
+    if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+
+    const prompt = `Extract all individual names from this image of a guest list or WhatsApp group members.
+Format your response as a simple JSON array of strings: ["Name 1", "Name 2", ...].
+Exclude common words like 'Admin', 'Joined', 'Left', or dates and timestamps.
+Return ONLY the JSON.`;
+
+    try {
+      const model = ai.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        },
+        { text: prompt }
+      ]);
+      res.json(JSON.parse(result.response.text()));
+    } catch (error) {
+      res.status(500).json({ error: "AI extraction failed" });
     }
   });
 
