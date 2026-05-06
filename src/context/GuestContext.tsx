@@ -9,7 +9,8 @@ import {
   doc, 
   setDoc, 
   getDocFromServer,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, User, signOut } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
@@ -68,6 +69,7 @@ interface GuestContextType {
   user: User | null;
   isLoading: boolean;
   addGuest: (guest: Omit<Guest, 'id' | 'createdAt'>) => Promise<void>;
+  bulkAddGuests: (guests: Omit<Guest, 'id' | 'createdAt'>[]) => Promise<void>;
   updateGuest: (id: string, updates: Partial<Guest>) => Promise<void>;
   deleteGuest: (id: string) => Promise<void>;
   addCategory: (name: string) => Promise<void>;
@@ -206,6 +208,28 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const bulkAddGuests = useCallback(async (guestsData: Omit<Guest, 'id' | 'createdAt'>[]) => {
+    if (!user || guestsData.length === 0) return;
+    const batch = writeBatch(db);
+    const userRef = doc(db, 'users', user.uid);
+    const guestsRef = collection(userRef, 'guests');
+
+    guestsData.forEach(data => {
+      const newDocRef = doc(guestsRef);
+      batch.set(newDocRef, {
+        ...data,
+        ownerId: user.uid,
+        createdAt: serverTimestamp(),
+      });
+    });
+
+    try {
+      await batch.commit();
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/guests (bulk)`);
+    }
+  }, [user]);
+
   const updateGuest = useCallback(async (id: string, updates: Partial<Guest>) => {
     if (!user) return;
     const path = `users/${user.uid}/guests/${id}`;
@@ -303,6 +327,7 @@ export function GuestProvider({ children }: { children: React.ReactNode }) {
     user,
     isLoading,
     addGuest,
+    bulkAddGuests,
     updateGuest,
     deleteGuest,
     addCategory,

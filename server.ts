@@ -375,6 +375,19 @@ async function startServer() {
       const webhookUrl = `${protocol}://${domain}/api/telegram-webhook?ownerId=${ownerId}`;
 
       logToFile(`>>> Webhook Setup: using domain ${domain}. Final URL: ${webhookUrl}`);
+      
+      // Step 1: Check existing webhook info
+      try {
+        const checkRes = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+        const checkData = await checkRes.json();
+        if (checkData.ok && checkData.result.url === webhookUrl) {
+          logToFile(">>> Webhook already correctly set. Skipping setWebhook.");
+          return res.json({ success: true, result: checkData.result, alreadySet: true });
+        }
+      } catch (e) {
+        logToFile(`>>> getWebhookInfo failed (ignoring): ${e}`);
+      }
+
       logToFile(`>>> Activating webhook for token: ${token.substring(0, 5)}...`);
       const telRes = await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
       const result = await telRes.json();

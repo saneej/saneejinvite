@@ -9,7 +9,7 @@ import { cn } from '../lib/utils';
 type EntryMode = 'SINGLE' | 'BULK' | 'AI';
 
 export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void }) {
-  const { addGuest, guests, categories, settings } = useGuests();
+  const { addGuest, bulkAddGuests, guests, categories, settings } = useGuests();
   const [mode, setMode] = useState<EntryMode>('SINGLE');
   
   // Single Mode State
@@ -57,10 +57,39 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
     try {
       const reader = new FileReader();
       reader.onload = async (event) => {
-        const base64 = (event.target?.result as string).split(',')[1];
-        const names = await extractGuestsFromImage(base64, file.type);
-        setExtractedNames(names);
-        setIsExtracting(false);
+        const img = new Image();
+        img.onload = async () => {
+          // Resize image to max 1024px while maintaining aspect ratio
+          const MAX_WIDTH = 1024;
+          const MAX_HEIGHT = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Use lower quality to reduce base64 size
+          const resizedBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+          const names = await extractGuestsFromImage(resizedBase64, 'image/jpeg');
+          setExtractedNames(names);
+          setIsExtracting(false);
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     } catch (err) {
@@ -70,35 +99,35 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
     }
   };
 
-  const handleAiSubmit = () => {
-    extractedNames.forEach(n => {
-      addGuest({
-        name: n,
-        category,
-        status,
-        notes: '',
-        phone: ''
-      });
-    });
+  const handleAiSubmit = async () => {
+    if (extractedNames.length === 0) return;
+    
+    await bulkAddGuests(extractedNames.map(n => ({
+      name: n,
+      category,
+      status,
+      notes: 'Added via AI',
+      phone: ''
+    })));
+    
     setExtractedNames([]);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
     setMode('SINGLE');
   };
 
-  const handleBulkSubmit = (e: React.FormEvent) => {
+  const handleBulkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const names = bulkText.split('\n').map(n => n.trim()).filter(n => n.length > 0);
-    
-    names.forEach(n => {
-      addGuest({
-        name: n,
-        category,
-        status,
-        notes: '',
-        phone: ''
-      });
-    });
+    if (names.length === 0) return;
+
+    await bulkAddGuests(names.map(n => ({
+      name: n,
+      category,
+      status,
+      notes: 'Bulk added',
+      phone: ''
+    })));
 
     setBulkText('');
     setShowSuccess(true);

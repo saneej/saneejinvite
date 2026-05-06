@@ -7,13 +7,15 @@ import { generatePersonalizedInvitation } from '../services/aiService';
 import { cn } from '../lib/utils';
 
 export default function Invite() {
-  const { guests, settings, updateGuest } = useGuests();
+  const { guests, settings, updateGuest, categories } = useGuests();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [personalizedMessages, setPersonalizedMessages] = useState<Record<string, string>>({});
   
-  const uninvitedGuests = guests.filter(g => 
+  const filteredGuests = guests.filter(g => 
     g.status === InvitationStatus.NOT_INVITED &&
+    (selectedCategory === 'All' || g.category === selectedCategory) &&
     g.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -35,25 +37,36 @@ export default function Invite() {
     }
   };
 
-  const getWhatsAppLink = (guest: Guest) => {
+  const getWhatsAppLink = (guest: Guest, type: 'greeting' | 'invitation') => {
     if (!guest.phone) return '#';
+    
+    let message = '';
+    if (type === 'greeting') {
+      message = (settings.greetingMessage || '').replace('[Name]', guest.name);
+    } else {
+      message = personalizedMessages[guest.id] || (settings.whatsappTemplate || '')
+        .replace('[Name]', guest.name)
+        .replace('[Date]', settings.weddingDate)
+        .replace('[Venue]', settings.venue);
+    }
+
     const cleanPhone = guest.phone.replace(/\D/g, '');
-    return `https://wa.me/${cleanPhone}`;
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-natural-border/50 pb-8">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-natural-border/50 pb-6">
         <div>
           <h1 className="text-3xl font-serif font-bold text-natural-olive">Invitation Station</h1>
-          <p className="text-natural-muted text-sm mt-1 italic tracking-wide">Personalize and send your elegant invitations.</p>
+          <p className="text-natural-muted text-sm mt-1 italic tracking-wide">Select a category and start inviting guests.</p>
         </div>
         
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-muted group-focus-within:text-natural-olive transition-colors" />
           <input 
             type="text"
-            placeholder="Search uninvited guests..."
+            placeholder="Search within selection..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-4 py-2 bg-white border border-natural-border/50 rounded-xl text-sm outline-none focus:border-natural-olive transition-all min-w-[280px] shadow-sm"
@@ -61,10 +74,39 @@ export default function Invite() {
         </div>
       </header>
 
+      {/* Category Filter Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <button
+          onClick={() => setSelectedCategory('All')}
+          className={cn(
+            "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all",
+            selectedCategory === 'All'
+              ? "bg-natural-olive text-white shadow-md ring-2 ring-natural-olive/20"
+              : "bg-white text-natural-muted border border-natural-border/40 hover:border-natural-olive"
+          )}
+        >
+          All Categories ({guests.filter(g => g.status === InvitationStatus.NOT_INVITED).length})
+        </button>
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setSelectedCategory(cat.name)}
+            className={cn(
+              "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all",
+              selectedCategory === cat.name
+                ? "bg-natural-olive text-white shadow-md ring-2 ring-natural-olive/20"
+                : "bg-white text-natural-muted border border-natural-border/40 hover:border-natural-olive"
+            )}
+          >
+            {cat.name} ({guests.filter(g => g.status === InvitationStatus.NOT_INVITED && g.category === cat.name).length})
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 gap-4">
         <AnimatePresence mode="popLayout">
-          {uninvitedGuests.length > 0 ? (
-            uninvitedGuests.map((guest) => (
+          {filteredGuests.length > 0 ? (
+            filteredGuests.map((guest) => (
               <motion.div
                 key={guest.id}
                 layout
@@ -110,7 +152,7 @@ export default function Invite() {
                           </div>
                           {guest.phone && (
                             <a
-                              href={getWhatsAppLink(guest)}
+                              href={getWhatsAppLink(guest, 'greeting')}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="w-full flex items-center justify-center gap-2 py-2 bg-white border border-natural-border/50 text-[9px] font-bold uppercase tracking-widest text-natural-olive hover:bg-natural-olive hover:text-white transition-all rounded-lg"
@@ -134,7 +176,7 @@ export default function Invite() {
                           </div>
                           {guest.phone && (
                             <a
-                              href={getWhatsAppLink(guest)}
+                              href={getWhatsAppLink(guest, 'invitation')}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={() => updateGuest(guest.id, { status: InvitationStatus.INVITED })}
@@ -144,6 +186,13 @@ export default function Invite() {
                               Open WhatsApp Invite
                             </a>
                           )}
+                          <button
+                            onClick={() => updateGuest(guest.id, { status: InvitationStatus.INVITED })}
+                            className="w-full py-1.5 text-[8px] font-bold uppercase tracking-widest text-natural-muted hover:text-natural-olive transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100"
+                          >
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            Mark as Invited without sending
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -156,8 +205,14 @@ export default function Invite() {
               <div className="w-16 h-16 bg-natural-sidebar rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-natural-olive opacity-40" />
               </div>
-              <h3 className="text-lg font-serif font-bold text-natural-ink">All Guests Invited</h3>
-              <p className="text-natural-muted text-sm px-10 mt-2">Everyone on your list has been sent an invitation. Good job!</p>
+              <h3 className="text-lg font-serif font-bold text-natural-ink">
+                {selectedCategory === 'All' ? 'All Guests Invited' : `All ${selectedCategory} Guests Invited`}
+              </h3>
+              <p className="text-natural-muted text-sm px-10 mt-2">
+                {selectedCategory === 'All' 
+                  ? 'Everyone on your list has been sent an invitation.' 
+                  : `You have successfully invited everyone in the ${selectedCategory} category.`}
+              </p>
             </div>
           )}
         </AnimatePresence>

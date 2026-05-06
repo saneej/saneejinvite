@@ -232,9 +232,18 @@ export function Settings() {
                         });
                         const data = await res.json();
                         if (data.success) {
-                          alert('✅ Bot linked successfully! Send /start to your bot on Telegram now.');
+                          if (data.alreadySet) {
+                            alert('✅ Webhook is already correctly set up and active!');
+                          } else {
+                            alert('✅ Bot linked successfully! Send /start to your bot on Telegram now.');
+                          }
                         } else {
-                          alert('❌ Link failed: ' + (data.result?.description || 'Unknown error'));
+                          const errorMsg = data.result?.description || data.error || 'Unknown error';
+                          if (errorMsg.includes('Too Many Requests')) {
+                            alert('⚠️ Telegram Rate Limit: Please wait a minute before trying to reactivate again.');
+                          } else {
+                            alert('❌ Link failed: ' + errorMsg);
+                          }
                         }
                       } catch (err) {
                         alert('❌ Error connecting to server.');
