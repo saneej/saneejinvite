@@ -449,11 +449,11 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3 relative">
-                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">Guest Name</label>
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">👤 Guest's Name</label>
                 <input
                   type="text"
                   required
-                  placeholder="Full Name (e.g. Rahul Sharma)"
+                  placeholder="Type full name (e.g. Rahul Sharma)"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -499,10 +499,10 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
                 </AnimatePresence>
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">Contact Info</label>
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">📞 Phone Number (For WhatsApp / Calling)</label>
                 <input
                   type="text"
-                  placeholder="Phone Number"
+                  placeholder="Type phone or WhatsApp number"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="input-natural"
@@ -603,20 +603,20 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted italic ml-1">Suggested By</label>
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">💡 Requested / Suggested by who? (e.g. Grandma, Groom)</label>
                 <input
                   type="text"
-                  placeholder="e.g. Groom's Parents"
+                  placeholder="e.g. Parents, Bride's family, etc."
                   value={suggestedBy}
                   onChange={(e) => setSuggestedBy(e.target.value)}
                   className="input-natural"
                 />
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted italic ml-1">Point of Contact</label>
+                <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">📞 Who will contact this guest? (e.g. Groom, Bride, Parents)</label>
                 <input
                   type="text"
-                  placeholder="Who is calling this guest?"
+                  placeholder="Name of the person who will call them"
                   value={primaryCaller}
                   onChange={(e) => setPrimaryCaller(e.target.value)}
                   className="input-natural"
@@ -625,9 +625,9 @@ export function AddGuest({ onViewChange }: { onViewChange: (view: View) => void 
             </div>
 
             <div className="space-y-3">
-              <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">Personal Notes</label>
+              <label className="text-[10px] uppercase font-bold tracking-widest text-natural-muted ml-1">📝 Helpful Notes (Food habits, allergies, or special greetings)</label>
               <textarea
-                placeholder="Mention allergies, arrival dates, or special greetings..."
+                placeholder="Write any helpful details here... (e.g. vegetarian food, needs pick up from station)"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full bg-natural-sidebar/50 border border-natural-border/40 px-6 py-5 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-natural-olive/5 focus:bg-white focus:border-natural-olive transition-all h-32 resize-none leading-relaxed"

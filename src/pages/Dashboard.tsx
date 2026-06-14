@@ -99,7 +99,7 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
         <div className="flex flex-col items-center justify-center gap-10">
           <div className="space-y-4">
             <div className="inline-flex items-center gap-4 bg-natural-olive/5 px-6 py-2 rounded-full border border-natural-olive/10 mb-2">
-               <span className="text-[10px] uppercase tracking-[0.5em] font-black text-natural-muted">Wedding Manager</span>
+               <span className="text-[10px] uppercase tracking-[0.5em] font-black text-natural-muted">💌 Wedding RSVP & Guest Planner 💌</span>
             </div>
             <h2 className="text-5xl md:text-7xl font-serif font-black text-natural-ink italic leading-tight">
               {settings.brideName} <span className="text-natural-olive">&</span> {settings.groomName}
@@ -115,10 +115,10 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
             <div className="absolute inset-x-0 -bottom-10 h-40 bg-natural-olive/10 rounded-full blur-[100px] opacity-20 pointer-events-none" />
             <div className="relative bg-white border-2 border-natural-border/30 rounded-[3rem] p-10 flex flex-col items-center gap-6 shadow-2xl transition-all duration-700 hover:border-natural-olive/30 hover:scale-[1.02]">
               <div className="w-12 h-12 rounded-2xl bg-natural-sidebar flex items-center justify-center text-natural-olive mb-2">
-                <Flower className="w-6 h-6" />
+                <Flower className="w-6 h-6 animate-pulse" />
               </div>
               <div className="space-y-4">
-                <p className="text-[11px] uppercase font-black text-natural-muted tracking-[0.4em]">Save the Date</p>
+                <p className="text-[11px] uppercase font-black text-natural-muted tracking-[0.4em]">Save the Date 📅</p>
                 <p className="text-2xl font-serif font-black text-natural-ink italic">
                   {isValidDate 
                     ? weddingDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
@@ -127,12 +127,12 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
                 <div className="flex items-center justify-center gap-4 mt-8 pt-6 border-t border-natural-border/20">
                   <div className="text-center">
                     <p className="text-3xl font-serif font-black text-natural-olive italic leading-none">{daysRemaining > 0 ? daysRemaining : 0}</p>
-                    <p className="text-[9px] uppercase font-black text-natural-muted tracking-widest mt-2">Days to go</p>
+                    <p className="text-[9px] uppercase font-black text-natural-muted tracking-widest mt-2">⏳ Days to go</p>
                   </div>
                   <div className="h-8 w-px bg-natural-border/30" />
                   <div className="text-center">
                     <p className="text-3xl font-serif font-bold text-natural-ink italic leading-none">{totalGuests}</p>
-                    <p className="text-[9px] uppercase font-black text-natural-muted tracking-widest mt-2">Guests</p>
+                    <p className="text-[9px] uppercase font-black text-natural-muted tracking-widest mt-2">👥 Total Guests</p>
                   </div>
                 </div>
               </div>
@@ -146,11 +146,11 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
             <div className="absolute top-0 right-0 w-32 h-32 bg-natural-olive/5 rounded-bl-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
             <div className="flex justify-between items-end relative z-10">
               <div>
-                <p className="text-[10px] font-bold text-natural-muted uppercase tracking-[0.2em]">Sent invitations</p>
-                <h4 className="text-3xl font-serif font-bold text-natural-ink mt-2 italic">{invitedCount} <span className="text-sm font-sans font-normal text-natural-muted/50 not-italic">/ {totalGuests}</span></h4>
+                <p className="text-[10px] font-black text-natural-muted uppercase tracking-[0.2em]">Sent Invitations ✉️</p>
+                <h4 className="text-3xl font-serif font-bold text-natural-ink mt-2 italic">{invitedCount} <span className="text-sm font-sans font-normal text-natural-muted/50 not-italic">/ {totalGuests} guests</span></h4>
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-xs font-bold text-natural-olive bg-natural-olive/5 px-3 py-1 rounded-full">{invitationRate}%</span>
+                <span className="text-xs font-bold text-natural-olive bg-natural-olive/5 px-3 py-1 rounded-full">{invitationRate}% Sent</span>
               </div>
             </div>
             <div className="h-2 bg-natural-sidebar/50 rounded-full overflow-hidden relative z-10">
@@ -166,11 +166,11 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 rounded-bl-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
             <div className="flex justify-between items-end relative z-10">
               <div>
-                <p className="text-[10px] font-bold text-natural-muted uppercase tracking-[0.2em]">Confirmed RSVPs</p>
-                <h4 className="text-3xl font-serif font-bold text-natural-ink mt-2 italic">{confirmedCount} <span className="text-sm font-sans font-normal text-natural-muted/50 not-italic">/ {totalGuests}</span></h4>
+                <p className="text-[10px] font-black text-natural-muted uppercase tracking-[0.2em]">Confirmed Guests 🎉</p>
+                <h4 className="text-3xl font-serif font-bold text-natural-ink mt-2 italic">{confirmedCount} <span className="text-sm font-sans font-normal text-natural-muted/50 not-italic">/ {totalGuests} guests</span></h4>
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{confirmationRate}%</span>
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{confirmationRate}% Confirmed</span>
               </div>
             </div>
             <div className="h-2 bg-natural-sidebar/50 rounded-full overflow-hidden relative z-10">

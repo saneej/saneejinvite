@@ -252,8 +252,8 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
         <div className="absolute inset-x-0 bottom-0 h-px bg-natural-olive/30 scale-x-0 group-focus-within:scale-x-100 transition-transform duration-700 origin-center" />
         <input 
           type="text"
-          placeholder="Add Guest: Name, Category (optional)"
-          className="w-full bg-natural-sidebar/30 border border-natural-border/40 px-8 py-5 rounded-[2rem] text-sm md:text-base italic font-serif outline-none focus:bg-white focus:shadow-2xl transition-all h-16 text-natural-ink"
+          placeholder="✍️ Type a name here, then press Enter on your keyboard to add them! (Example: Aunt Sarah, Family)"
+          className="w-full bg-natural-sidebar/30 border border-natural-border/40 px-8 py-5 rounded-[2rem] text-sm md:text-base font-serif outline-none focus:bg-white focus:shadow-2xl transition-all h-16 text-natural-ink"
           onKeyDown={async (e) => {
             if (e.key === 'Enter') {
               const val = e.currentTarget.value.trim();
@@ -266,8 +266,8 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
             }
           }}
         />
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[9px] font-bold uppercase tracking-widest text-natural-muted/60 bg-white px-3 py-1 rounded-full border border-natural-border/40">
-          Enter to add
+        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[9px] font-bold uppercase tracking-widest text-natural-muted/60 bg-white px-3 py-1 rounded-full border border-natural-border/40 hidden sm:block">
+          Press Enter 🚀
         </div>
       </div>
 
@@ -278,8 +278,8 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
             <div className="w-8 h-8 rounded-full bg-natural-olive/10 flex items-center justify-center">
               <ChevronDown className="w-4 h-4 text-natural-olive" />
             </div>
-            <p className="text-[11px] uppercase tracking-[0.3em] font-bold text-natural-ink">
-              Fine-tune Selection
+            <p className="text-[11px] uppercase tracking-[0.3em] font-black text-natural-ink">
+              🔍 Filter & Find Guests
             </p>
           </div>
           <AnimatePresence>
@@ -300,14 +300,14 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">Category</label>
+            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">Group / Circle 👥</label>
             <div className="relative group">
               <select 
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
                 className="custom-select w-full h-14 appearance-none pr-12 uppercase font-black text-[10px] tracking-widest text-natural-ink italic"
               >
-                <option value="All">All Categories</option>
+                <option value="All">All Groups</option>
                 {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
               </select>
               <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-natural-olive pointer-events-none transition-transform group-hover:translate-y-[-40%]" />
@@ -315,7 +315,7 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">Status</label>
+            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">RSVP / Invitation Status 📨</label>
             <div className="relative group">
               <select 
                 value={filterStatus}
@@ -330,7 +330,7 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">From</label>
+            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">Added after date 📅</label>
             <input 
               type="date"
               value={startDate}
@@ -340,7 +340,7 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">To</label>
+            <label className="text-[10px] uppercase tracking-[0.2em] font-bold text-natural-muted ml-2">Added before date 📅</label>
             <input 
               type="date"
               value={endDate}
@@ -455,15 +455,60 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
                   {/* Subtle Background Pattern */}
                   <div className="absolute top-0 right-0 w-24 h-24 bg-natural-olive/5 rounded-bl-full -mr-12 -mt-12 group-hover:scale-125 transition-transform duration-700 pointer-events-none opacity-0 group-hover:opacity-100" />
 
-                  <div className="relative">
-                    <div 
+                  {/* Select Checkbox (Bulk Manage) */}
+                  <div className="flex items-center shrink-0 select-none">
+                    <button
+                      type="button"
                       onClick={() => toggleSelection(guest.id)}
                       className={cn(
-                        "custom-checkbox transition-all scale-110",
-                        selectedIds.includes(guest.id) ? "active" : "bg-natural-sidebar"
+                        "w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all",
+                        selectedIds.includes(guest.id)
+                          ? "bg-natural-olive border-natural-olive text-white shadow-sm"
+                          : "border-slate-200 bg-slate-50 hover:border-natural-olive text-transparent hover:bg-white"
                       )}
+                      title="Select guest for bulk actions"
                     >
-                      <Check className={cn("w-3 h-3 transition-transform", selectedIds.includes(guest.id) ? "scale-100 text-white" : "scale-0")} />
+                      <Check className="w-3.5 h-3.5 stroke-[3.5px]" />
+                    </button>
+                  </div>
+
+                  {/* Mark as Invited - Simple, satisfying Checkbox */}
+                  <div className="flex items-center gap-2.5 shrink-0 select-none border-r border-slate-100 pr-4">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const isCurrentlyInvited = guest.status === InvitationStatus.INVITED || guest.status === InvitationStatus.CONFIRMED;
+                        const newStatus = isCurrentlyInvited ? InvitationStatus.NOT_INVITED : InvitationStatus.INVITED;
+                        updateGuest(guest.id, { status: newStatus });
+                      }}
+                      className={cn(
+                        "w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all duration-200",
+                        (guest.status === InvitationStatus.INVITED || guest.status === InvitationStatus.CONFIRMED)
+                          ? "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/10 scale-105" 
+                          : "border-slate-300 bg-slate-50 text-slate-400 hover:border-emerald-500 hover:text-emerald-500 hover:bg-emerald-50/50"
+                      )}
+                      title={
+                        guest.status === InvitationStatus.INVITED || guest.status === InvitationStatus.CONFIRMED 
+                          ? "Uncheck to mark as Not Invited" 
+                          : "Check to mark as Invited"
+                      }
+                    >
+                      <Check className={cn(
+                        "w-4 h-4 stroke-[4px] transition-transform duration-200",
+                        (guest.status === InvitationStatus.INVITED || guest.status === InvitationStatus.CONFIRMED) 
+                          ? "scale-105" 
+                          : "scale-0"
+                      )} />
+                    </button>
+                    <div className="text-left hidden md:block">
+                      <p className={cn(
+                        "text-[10px] uppercase font-black tracking-wider leading-none",
+                        (guest.status === InvitationStatus.INVITED || guest.status === InvitationStatus.CONFIRMED)
+                          ? "text-emerald-600"
+                          : "text-slate-400"
+                      )}>
+                        {(guest.status === InvitationStatus.INVITED || guest.status === InvitationStatus.CONFIRMED) ? "Invited ✓" : "Not Invited"}
+                      </p>
                     </div>
                   </div>
                   
@@ -540,16 +585,30 @@ export function GuestList({ onViewChange }: { onViewChange: (view: View) => void
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => toggleSelection(guest.id)}
+                        className={cn(
+                          "w-10 h-10 flex items-center justify-center rounded-2xl border transition-all",
+                          selectedIds.includes(guest.id) 
+                            ? "bg-slate-800 border-slate-800 text-white shadow-md scale-105" 
+                            : "border-slate-200 text-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                        )}
+                        title={selectedIds.includes(guest.id) ? "Deselect guest" : "Select guest for bulk actions"}
+                      >
+                        <Check className={cn("w-4 h-4 transition-transform duration-200 stroke-[3px]", selectedIds.includes(guest.id) ? "scale-100" : "scale-0")} />
+                      </button>
                       <button
                         onClick={() => setEditingGuest(guest)}
                         className="w-10 h-10 flex items-center justify-center text-natural-muted hover:text-natural-olive hover:bg-natural-sidebar rounded-2xl transition-all"
+                        title="Edit guest details"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setDeleteId(guest.id)}
                         className="w-10 h-10 flex items-center justify-center text-natural-muted hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all"
+                        title="Delete guest"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
