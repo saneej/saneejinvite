@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGuests } from '../context/GuestContext';
 import { InvitationStatus } from '../types';
-import { CheckCircle2, Send, HelpCircle, Users, UserPlus, Tags, Flower } from 'lucide-react';
+import { CheckCircle2, Send, HelpCircle, Users, UserPlus, Tags, Flower, Check, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
   BarChart, 
@@ -20,6 +20,32 @@ import { ConnectionStatus } from '../components/ConnectionStatus';
 
 export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void }) {
   const { guests, categories, settings, updateGuest, user, addGuest } = useGuests();
+
+  const [guestSearch, setGuestSearch] = React.useState('');
+  const [guestFilterTab, setGuestFilterTab] = React.useState<'all' | 'not_invited' | 'invited'>('all');
+
+  const handleToggleInvited = async (guestId: string, currentStatus: InvitationStatus) => {
+    const isCurrentlyInvited = currentStatus === InvitationStatus.INVITED || currentStatus === InvitationStatus.CONFIRMED;
+    const newStatus = isCurrentlyInvited ? InvitationStatus.NOT_INVITED : InvitationStatus.INVITED;
+    await updateGuest(guestId, { status: newStatus });
+  };
+
+  const filteredGuests = guests
+    .filter(g => {
+      const matchesSearch = g.name.toLowerCase().includes(guestSearch.toLowerCase()) || 
+                            (g.phone && g.phone.includes(guestSearch)) ||
+                            g.category.toLowerCase().includes(guestSearch.toLowerCase());
+      if (!matchesSearch) return false;
+
+      if (guestFilterTab === 'not_invited') {
+        return g.status === InvitationStatus.NOT_INVITED;
+      }
+      if (guestFilterTab === 'invited') {
+        return g.status === InvitationStatus.INVITED || g.status === InvitationStatus.CONFIRMED;
+      }
+      return true;
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   const handleSeedData = async () => {
     if (!user || categories.length === 0) return;
@@ -246,40 +272,123 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
         </motion.button>
       </motion.section>
 
-      {/* Quick Action: Pending Invitations */}
-      {pendingGuests.length > 0 && (
-        <motion.section variants={itemVariants} className="bg-white p-6 rounded-2xl border border-natural-border/60 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="text-lg font-serif font-bold text-natural-ink">Quick Invite</h3>
-              <p className="text-[10px] text-natural-muted uppercase tracking-widest">Recently added, not yet invited</p>
-            </div>
-            <button 
-              onClick={() => onViewChange('invite')}
-              className="text-[10px] font-bold uppercase underline tracking-widest text-natural-olive hover:text-natural-ink transition-colors"
+      {/* Comprehensive Quick Invitation Tracker Checklist */}
+      <motion.section variants={itemVariants} className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-natural-border/60 shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-serif font-bold text-natural-ink flex items-center gap-2">📋 Invitation Checklist</h3>
+            <p className="text-[10px] text-natural-muted uppercase tracking-widest font-black mt-1">Tap the circle to mark any guest as invited instantly!</p>
+          </div>
+          <button 
+            onClick={() => onViewChange('guests')}
+            className="text-[10px] font-bold uppercase underline tracking-widest text-natural-olive hover:text-natural-ink transition-colors self-start md:self-auto"
+          >
+            Manage Guest List ➔
+          </button>
+        </div>
+
+        {/* Search and Tab Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="🔍 Search guests by name or category..."
+              value={guestSearch}
+              onChange={(e) => setGuestSearch(e.target.value)}
+              className="w-full bg-natural-sidebar/40 border border-natural-border/30 pl-11 pr-4 py-3 rounded-2xl text-xs outline-none focus:ring-4 focus:ring-natural-olive/5 focus:bg-white focus:border-natural-olive transition-all text-natural-ink"
+            />
+          </div>
+          
+          <div className="flex bg-natural-sidebar/40 p-1 rounded-2xl border border-natural-border/20 self-start sm:self-auto">
+            <button
+              onClick={() => setGuestFilterTab('all')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
+                guestFilterTab === 'all' 
+                  ? 'bg-white text-natural-ink shadow-sm' 
+                  : 'text-natural-muted hover:text-natural-ink'
+              }`}
             >
-              Open Invite Station
+              All ({guests.length})
+            </button>
+            <button
+              onClick={() => setGuestFilterTab('not_invited')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
+                guestFilterTab === 'not_invited' 
+                  ? 'bg-white text-slate-900 shadow-sm' 
+                  : 'text-natural-muted hover:text-natural-ink'
+              }`}
+            >
+              Pending ({guests.filter(g => g.status === InvitationStatus.NOT_INVITED).length})
+            </button>
+            <button
+              onClick={() => setGuestFilterTab('invited')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
+                guestFilterTab === 'invited' 
+                  ? 'bg-white text-emerald-600 shadow-sm' 
+                  : 'text-natural-muted hover:text-natural-ink'
+              }`}
+            >
+              Invited ({guests.filter(g => g.status === InvitationStatus.INVITED || g.status === InvitationStatus.CONFIRMED).length})
             </button>
           </div>
-          <div className="space-y-3">
-            {pendingGuests.map((guest) => (
-              <div key={guest.id} className="flex items-center justify-between p-3 rounded-xl bg-natural-sidebar/30 border border-natural-border/40">
-                <div className="min-w-0">
-                  <h4 className="text-sm font-bold text-natural-ink truncate">{guest.name}</h4>
-                  <p className="text-[9px] uppercase tracking-wider text-natural-muted font-medium">{guest.category}</p>
-                </div>
-                <button
-                  onClick={() => updateGuest(guest.id, { status: InvitationStatus.INVITED })}
-                  className="bg-natural-olive text-white px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-natural-ink transition-colors flex items-center gap-2"
-                >
-                  <Send className="w-3 h-3" />
-                  Mark Invited
-                </button>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-      )}
+        </div>
+
+        {/* Scrollable Guest Checklist Grid */}
+        <div className="max-h-96 overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-slate-200">
+          {filteredGuests.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {filteredGuests.map((guest) => {
+                const isInvited = guest.status === InvitationStatus.INVITED || guest.status === InvitationStatus.CONFIRMED;
+                return (
+                  <div 
+                    key={guest.id} 
+                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 ${
+                      isInvited 
+                        ? 'bg-emerald-50/10 border-emerald-100/55 hover:bg-emerald-50/20' 
+                        : 'bg-natural-sidebar/20 border-natural-border/30 hover:bg-white hover:border-natural-olive/20 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="min-w-0 pr-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className={`text-sm font-bold truncate ${isInvited ? 'text-slate-700' : 'text-natural-ink'}`}>
+                          {guest.name}
+                        </h4>
+                        <span className="shrink-0 text-[8px] font-black uppercase tracking-wider text-natural-muted/70 bg-white/80 border border-slate-100 px-1.5 py-0.5 rounded">
+                          {guest.category}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-natural-muted mt-0.5 truncate">
+                        {guest.phone ? `📞 ${guest.phone}` : 'No phone number'}
+                      </p>
+                    </div>
+
+                    {/* Simple Round Checkbox / Satisfying circular click toggle */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleInvited(guest.id, guest.status)}
+                      className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 shrink-0 ${
+                        isInvited 
+                          ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/10 hover:bg-emerald-600 hover:border-emerald-600 scale-105' 
+                          : 'border-slate-300 bg-slate-50 text-transparent hover:border-emerald-500 hover:text-emerald-500 hover:bg-white'
+                      }`}
+                      title={isInvited ? "Mark as Not Invited" : "Mark as Invited"}
+                    >
+                      <Check className={`w-5 h-5 stroke-[4.5px] transition-transform duration-200 ${isInvited ? 'scale-110' : 'scale-0 hover:scale-100 hover:text-slate-400'}`} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-12 text-center text-natural-muted italic text-xs bg-natural-sidebar/10 rounded-2xl border border-dashed border-natural-border/60">
+              {guests.length === 0 
+                ? "Add some guests to get started! Click 'Add Guest' above 🚀" 
+                : "No guests found matching your filter or search criteria."}
+            </div>
+          )}
+        </div>
+      </motion.section>
 
       {/* Analytics Section */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-8">
