@@ -63,4 +63,4 @@ export interface SharedList {
   createdAt: number;
 }
 
-export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite' | 'logs' | 'onboarding' | 'shared' | 'category-detail';
+export type View = 'dashboard' | 'guests' | 'add' | 'categories' | 'settings' | 'invite' | 'logs' | 'onboarding' | 'shared' | 'category-detail' | 'checklist';

@@ -280,10 +280,10 @@ export function Dashboard({ onViewChange }: { onViewChange: (view: View) => void
             <p className="text-[10px] text-natural-muted uppercase tracking-widest font-black mt-1">Tap the circle to mark any guest as invited instantly!</p>
           </div>
           <button 
-            onClick={() => onViewChange('guests')}
+            onClick={() => onViewChange('checklist')}
             className="text-[10px] font-bold uppercase underline tracking-widest text-natural-olive hover:text-natural-ink transition-colors self-start md:self-auto"
           >
-            Manage Guest List ➔
+            Open Fullscreen Checklist ➔
           </button>
         </div>
 

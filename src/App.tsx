@@ -13,6 +13,7 @@ import { WeddingAIBot } from './components/WeddingAIBot';
 import { Onboarding } from './components/Onboarding';
 import { SharedListPage } from './pages/SharedList';
 import { CategoryDetail } from './pages/CategoryDetail';
+import { Checklist } from './pages/Checklist';
 import { AnimatePresence, motion } from 'motion/react';
 import { Flower } from 'lucide-react';
 import { Preloader } from './components/Preloader';
@@ -52,6 +53,7 @@ function AppContent() {
       case 'logs': return <Logs />;
       case 'onboarding': return <Onboarding onComplete={() => { setActiveView('dashboard'); }} />;
       case 'shared': return <SharedListPage sharedId={sharedId || ''} onImportSuccess={() => setActiveView('guests')} />;
+      case 'checklist': return <Checklist onViewChange={setActiveView} />;
       case 'category-detail': return <CategoryDetail categoryName={selectedCategory || ''} onViewChange={setActiveView} />;
       default: return <Dashboard onViewChange={setActiveView} />;
     }
